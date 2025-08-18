@@ -1,8 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-import { WallpaperModule } from './wallpaper/wallpaper.module';
+import { TypeOrmModule } from '@nestjs/typeorm';
+
+import { UserModule } from './modules/user.module';
+import { databaseConfig } from './config/database.config';
 
 @Module({
   imports: [
@@ -10,9 +11,8 @@ import { WallpaperModule } from './wallpaper/wallpaper.module';
       isGlobal: true,
       envFilePath: '.env',
     }),
-    WallpaperModule,
+    TypeOrmModule.forRoot(databaseConfig),
+    UserModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
 })
 export class AppModule {}

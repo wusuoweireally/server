@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>用户管理系统 - 测试页面</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+          'Helvetica Neue', Arial, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        overflow: hidden;
+      }
+
+      .header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        text-align: center;
+      }
+
+      .header h1 {
+        font-size: 2.5rem;
+        margin-bottom: 10px;
+      }
+
+      .content {
+        padding: 30px;
+      }
+
+      .form-section {
+        margin-bottom: 40px;
+        padding: 25px;
+        border: 2px solid #f0f0f0;
+        border-radius: 10px;
+        background: #fafafa;
+      }
+
+      .form-section h3 {
+        color: #333;
+        margin-bottom: 20px;
+        font-size: 1.4rem;
+      }
+
+      .form-group {
+        margin-bottom: 20px;
+      }
+
+      .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #555;
+      }
+
+      .form-group input {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #ddd;
+        border-radius: 6px;
+        font-size: 16px;
+        transition: border-color 0.3s;
+      }
+
+      .form-group input:focus {
+        outline: none;
+        border-color: #667eea;
+      }
+
+      .btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 16px;
+        transition: transform 0.2s;
+        margin-right: 10px;
+        margin-bottom: 10px;
+      }
+
+      .btn:hover {
+        transform: translateY(-2px);
+      }
+
+      .btn-danger {
+        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+      }
+
+      .result {
+        margin-top: 20px;
+        padding: 15px;
+        border-radius: 6px;
+        background: #f8f9fa;
+        border-left: 4px solid #667eea;
+      }
+
+      .result.error {
+        border-left-color: #ff6b6b;
+        background: #ffe6e6;
+      }
+
+      .result.success {
+        border-left-color: #51cf66;
+        background: #e6ffe6;
+      }
+
+      .users-list {
+        margin-top: 30px;
+      }
+
+      .user-card {
+        background: white;
+        border: 1px solid #eee;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 15px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+
+      .user-card h4 {
+        color: #333;
+        margin-bottom: 10px;
+      }
+
+      .user-info {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 10px;
+        margin-bottom: 15px;
+      }
+
+      .status-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: bold;
+      }
+
+      .status-active {
+        background: #51cf66;
+        color: white;
+      }
+
+      .status-disabled {
+        background: #ff6b6b;
+        color: white;
+      }
+
+      pre {
+        background: #f4f4f4;
+        padding: 15px;
+        border-radius: 6px;
+        overflow-x: auto;
+        font-size: 14px;
+        max-height: 300px;
+        overflow-y: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>🚀 用户管理系统</h1>
+        <p>随心壁纸 - 用户管理API测试界面</p>
+      </div>
+
+      <div class="content">
+        <!-- 用户注册 -->
+        <div class="form-section">
+          <h3>📝 用户注册</h3>
+          <div class="form-group">
+            <label for="regId">用户ID (必填，数字):</label>
+            <input
+              type="text"
+              id="regId"
+              placeholder="请输入数字ID，如：123456789"
+            />
+          </div>
+          <div class="form-group">
+            <label for="regUsername">用户名 (可选):</label>
+            <input
+              type="text"
+              id="regUsername"
+              placeholder="不填写将自动生成"
+            />
+          </div>
+          <div class="form-group">
+            <label for="regEmail">邮箱 (可选):</label>
+            <input type="email" id="regEmail" placeholder="user@example.com" />
+          </div>
+          <div class="form-group">
+            <label for="regPassword">密码 (必填，6-20位):</label>
+            <input type="password" id="regPassword" placeholder="请输入密码" />
+          </div>
+          <div class="form-group">
+            <label for="regAvatar">头像URL (可选):</label>
+            <input
+              type="url"
+              id="regAvatar"
+              placeholder="https://example.com/avatar.jpg"
+            />
+          </div>
+          <button class="btn" onclick="registerUser()">注册用户</button>
+          <div id="registerResult" class="result" style="display: none"></div>
+        </div>
+
+        <!-- 用户登录 -->
+        <div class="form-section">
+          <h3>🔐 用户登录</h3>
+          <div class="form-group">
+            <label for="loginId">用户ID:</label>
+            <input type="text" id="loginId" placeholder="请输入用户ID" />
+          </div>
+          <div class="form-group">
+            <label for="loginPassword">密码:</label>
+            <input
+              type="password"
+              id="loginPassword"
+              placeholder="请输入密码"
+            />
+          </div>
+          <button class="btn" onclick="loginUser()">登录</button>
+          <button class="btn btn-danger" onclick="logoutUser()">
+            退出登录
+          </button>
+          <div id="loginResult" class="result" style="display: none"></div>
+        </div>
+
+        <!-- 查询操作 -->
+        <div class="form-section">
+          <h3>🔍 查询操作</h3>
+          <div class="form-group">
+            <label for="searchId">根据ID查询:</label>
+            <input type="text" id="searchId" placeholder="输入用户ID查询" />
+          </div>
+          <div class="form-group">
+            <label for="searchUsername">根据用户名搜索:</label>
+            <input
+              type="text"
+              id="searchUsername"
+              placeholder="输入用户名关键词搜索"
+            />
+          </div>
+          <button class="btn" onclick="getUserById()">根据ID查询</button>
+          <button class="btn" onclick="getAllUsers()">查询所有用户</button>
+          <button class="btn" onclick="searchUsers()">搜索用户</button>
+          <div id="searchResult" class="result" style="display: none"></div>
+        </div>
+
+        <!-- 用户管理 -->
+        <div class="form-section">
+          <h3>⚙️ 用户管理</h3>
+          <div class="form-group">
+            <label for="manageId">管理用户ID:</label>
+            <input type="text" id="manageId" placeholder="输入要管理的用户ID" />
+          </div>
+          <div class="form-group">
+            <label for="updateUsername">新用户名:</label>
+            <input type="text" id="updateUsername" placeholder="可选" />
+          </div>
+          <div class="form-group">
+            <label for="updateEmail">新邮箱:</label>
+            <input type="email" id="updateEmail" placeholder="可选" />
+          </div>
+          <div class="form-group">
+            <label for="updatePassword">新密码:</label>
+            <input type="password" id="updatePassword" placeholder="可选" />
+          </div>
+          <button class="btn" onclick="updateUser()">更新用户</button>
+          <button class="btn" onclick="toggleUserStatus()">切换状态</button>
+          <button class="btn btn-danger" onclick="deleteUser()">
+            删除用户
+          </button>
+          <div id="manageResult" class="result" style="display: none"></div>
+        </div>
+
+        <!-- 用户列表 -->
+        <div class="users-list">
+          <h3>👥 用户列表</h3>
+          <button class="btn" onclick="refreshUserList()">刷新列表</button>
+          <div id="usersList"></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const API_BASE = 'http://localhost:3000/api/users';
+
+      function showResult(elementId, content, isError = false) {
+        const element = document.getElementById(elementId);
+        element.style.display = 'block';
+        element.className = `result ${isError ? 'error' : 'success'}`;
+        if (typeof content === 'object') {
+          element.innerHTML =
+            '<pre>' + JSON.stringify(content, null, 2) + '</pre>';
+        } else {
+          element.innerHTML = content;
+        }
+      }
+
+      async function registerUser() {
+        const data = {
+          id: document.getElementById('regId').value,
+          password: document.getElementById('regPassword').value,
+        };
+
+        const username = document.getElementById('regUsername').value;
+        const email = document.getElementById('regEmail').value;
+        const avatarUrl = document.getElementById('regAvatar').value;
+
+        if (username) data.username = username;
+        if (email) data.email = email;
+        if (avatarUrl) data.avatarUrl = avatarUrl;
+
+        try {
+          const response = await fetch(`${API_BASE}/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+          });
+
+          const result = await response.json();
+          showResult('registerResult', result, !response.ok);
+          if (response.ok) refreshUserList();
+        } catch (error) {
+          showResult('registerResult', '请求失败: ' + error.message, true);
+        }
+      }
+
+      async function loginUser() {
+        const data = {
+          id: document.getElementById('loginId').value,
+          password: document.getElementById('loginPassword').value,
+        };
+
+        try {
+          const response = await fetch(`${API_BASE}/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(data),
+          });
+
+          const result = await response.json();
+          showResult('loginResult', result, !response.ok);
+        } catch (error) {
+          showResult('loginResult', '请求失败: ' + error.message, true);
+        }
+      }
+
+      async function logoutUser() {
+        try {
+          const response = await fetch(`${API_BASE}/logout`, {
+            method: 'POST',
+            credentials: 'include',
+          });
+
+          const result = await response.json();
+          showResult('loginResult', result, !response.ok);
+        } catch (error) {
+          showResult('loginResult', '请求失败: ' + error.message, true);
+        }
+      }
+
+      async function getUserById() {
+        const id = document.getElementById('searchId').value;
+        if (!id) {
+          showResult('searchResult', '请输入用户ID', true);
+          return;
+        }
+
+        try {
+          const response = await fetch(`${API_BASE}/${id}`);
+          const result = await response.json();
+          showResult('searchResult', result, !response.ok);
+        } catch (error) {
+          showResult('searchResult', '请求失败: ' + error.message, true);
+        }
+      }
+
+      async function getAllUsers() {
+        try {
+          const response = await fetch(`${API_BASE}?page=1&limit=20`);
+          const result = await response.json();
+          showResult('searchResult', result, !response.ok);
+          if (response.ok) displayUsers(result.data.users);
+        } catch (error) {
+          showResult('searchResult', '请求失败: ' + error.message, true);
+        }
+      }
+
+      async function searchUsers() {
+        const username = document.getElementById('searchUsername').value;
+        if (!username) {
+          showResult('searchResult', '请输入搜索关键词', true);
+          return;
+        }
+
+        try {
+          const response = await fetch(
+            `${API_BASE}?username=${encodeURIComponent(username)}`,
+          );
+          const result = await response.json();
+          showResult('searchResult', result, !response.ok);
+          if (response.ok) displayUsers(result.data.users);
+        } catch (error) {
+          showResult('searchResult', '请求失败: ' + error.message, true);
+        }
+      }
+
+      async function updateUser() {
+        const id = document.getElementById('manageId').value;
+        if (!id) {
+          showResult('manageResult', '请输入用户ID', true);
+          return;
+        }
+
+        const data = {};
+        const username = document.getElementById('updateUsername').value;
+        const email = document.getElementById('updateEmail').value;
+        const password = document.getElementById('updatePassword').value;
+
+        if (username) data.username = username;
+        if (email) data.email = email;
+        if (password) data.password = password;
+
+        if (Object.keys(data).length === 0) {
+          showResult('manageResult', '请至少填写一个要更新的字段', true);
+          return;
+        }
+
+        try {
+          const response = await fetch(`${API_BASE}/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(data),
+          });
+
+          const result = await response.json();
+          showResult('manageResult', result, !response.ok);
+          if (response.ok) refreshUserList();
+        } catch (error) {
+          showResult('manageResult', '请求失败: ' + error.message, true);
+        }
+      }
+
+      async function toggleUserStatus() {
+        const id = document.getElementById('manageId').value;
+        if (!id) {
+          showResult('manageResult', '请输入用户ID', true);
+          return;
+        }
+
+        try {
+          const response = await fetch(`${API_BASE}/${id}/toggle-status`, {
+            method: 'PATCH',
+            credentials: 'include',
+          });
+
+          const result = await response.json();
+          showResult('manageResult', result, !response.ok);
+          if (response.ok) refreshUserList();
+        } catch (error) {
+          showResult('manageResult', '请求失败: ' + error.message, true);
+        }
+      }
+
+      async function deleteUser() {
+        const id = document.getElementById('manageId').value;
+        if (!id) {
+          showResult('manageResult', '请输入用户ID', true);
+          return;
+        }
+
+        if (!confirm('确定要删除这个用户吗？此操作不可撤销！')) {
+          return;
+        }
+
+        try {
+          const response = await fetch(`${API_BASE}/${id}`, {
+            method: 'DELETE',
+            credentials: 'include',
+          });
+
+          const result = await response.json();
+          showResult('manageResult', result, !response.ok);
+          if (response.ok) refreshUserList();
+        } catch (error) {
+          showResult('manageResult', '请求失败: ' + error.message, true);
+        }
+      }
+
+      async function refreshUserList() {
+        try {
+          const response = await fetch(`${API_BASE}?page=1&limit=50`);
+          const result = await response.json();
+          if (response.ok) {
+            displayUsers(result.data.users);
+          }
+        } catch (error) {
+          console.error('刷新用户列表失败:', error);
+        }
+      }
+
+      function displayUsers(users) {
+        const container = document.getElementById('usersList');
+        if (!users || users.length === 0) {
+          container.innerHTML = '<p>暂无用户数据</p>';
+          return;
+        }
+
+        container.innerHTML = users
+          .map(
+            (user) => `
+                <div class="user-card">
+                    <h4>👤 ${user.username} (ID: ${user.id})</h4>
+                    <div class="user-info">
+                        <div><strong>邮箱:</strong> ${user.email || '未设置'}</div>
+                        <div><strong>状态:</strong> <span class="status-badge ${user.status === 1 ? 'status-active' : 'status-disabled'}">${user.status === 1 ? '正常' : '禁用'}</span></div>
+                        <div><strong>注册时间:</strong> ${new Date(user.createdAt).toLocaleString()}</div>
+                        <div><strong>更新时间:</strong> ${new Date(user.updatedAt).toLocaleString()}</div>
+                    </div>
+                    ${user.avatarUrl ? `<div><strong>头像:</strong> <a href="${user.avatarUrl}" target="_blank">查看头像</a></div>` : ''}
+                </div>
+            `,
+          )
+          .join('');
+      }
+
+      // 页面加载时自动刷新用户列表
+      document.addEventListener('DOMContentLoaded', refreshUserList);
+    </script>
+  </body>
+</html>
