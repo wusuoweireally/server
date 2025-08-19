@@ -1,0 +1,530 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>头像上传 - 用户管理系统</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+          'Helvetica Neue', Arial, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 800px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        overflow: hidden;
+      }
+
+      .header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        text-align: center;
+      }
+
+      .header h1 {
+        font-size: 2.5rem;
+        margin-bottom: 10px;
+      }
+
+      .content {
+        padding: 30px;
+      }
+
+      .avatar-section {
+        text-align: center;
+        margin-bottom: 40px;
+      }
+
+      .current-avatar {
+        width: 150px;
+        height: 150px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 4px solid #667eea;
+        margin-bottom: 20px;
+        display: block;
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      .upload-section {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 30px;
+        margin-bottom: 30px;
+      }
+
+      .upload-area {
+        border: 2px dashed #667eea;
+        border-radius: 10px;
+        padding: 40px;
+        text-align: center;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        margin-bottom: 20px;
+      }
+
+      .upload-area:hover {
+        border-color: #764ba2;
+        background: rgba(102, 126, 234, 0.05);
+      }
+
+      .upload-area.dragover {
+        border-color: #764ba2;
+        background: rgba(102, 126, 234, 0.1);
+      }
+
+      .upload-icon {
+        font-size: 3rem;
+        color: #667eea;
+        margin-bottom: 15px;
+      }
+
+      .file-input {
+        display: none;
+      }
+
+      .btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 16px;
+        transition: transform 0.2s;
+        margin: 10px;
+      }
+
+      .btn:hover {
+        transform: translateY(-2px);
+      }
+
+      .btn-danger {
+        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+      }
+
+      .btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .preview-section {
+        display: none;
+        text-align: center;
+        margin-bottom: 20px;
+      }
+
+      .preview-image {
+        max-width: 200px;
+        max-height: 200px;
+        border-radius: 10px;
+        margin-bottom: 15px;
+      }
+
+      .progress-bar {
+        width: 100%;
+        height: 8px;
+        background: #e0e0e0;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-bottom: 20px;
+        display: none;
+      }
+
+      .progress-fill {
+        height: 100%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        transition: width 0.3s ease;
+        width: 0%;
+      }
+
+      .result {
+        margin-top: 20px;
+        padding: 15px;
+        border-radius: 6px;
+        display: none;
+      }
+
+      .result.success {
+        background: #d4edda;
+        border: 1px solid #c3e6cb;
+        color: #155724;
+      }
+
+      .result.error {
+        background: #f8d7da;
+        border: 1px solid #f5c6cb;
+        color: #721c24;
+      }
+
+      .user-info {
+        background: #e7f3ff;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 30px;
+      }
+
+      .form-group {
+        margin-bottom: 20px;
+      }
+
+      .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #555;
+      }
+
+      .form-group input {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #ddd;
+        border-radius: 6px;
+        font-size: 16px;
+      }
+
+      .form-group input:focus {
+        outline: none;
+        border-color: #667eea;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>🖼️ 头像上传</h1>
+        <p>上传您的个人头像</p>
+      </div>
+
+      <div class="content">
+        <!-- 用户信息 -->
+        <div class="user-info">
+          <h3>👤 用户信息</h3>
+          <div class="form-group">
+            <label for="userId">用户ID:</label>
+            <input type="text" id="userId" placeholder="请输入用户ID" />
+          </div>
+          <button class="btn" onclick="loadUserInfo()">加载用户信息</button>
+        </div>
+
+        <!-- 当前头像 -->
+        <div class="avatar-section">
+          <h3>当前头像</h3>
+          <img
+            id="currentAvatar"
+            class="current-avatar"
+            src="/images/avatars/default-avatar.svg"
+            alt="当前头像"
+            onerror="this.src='/images/avatars/default-avatar.jpg'"
+          />
+          <p id="userDisplayName">请先输入用户ID并加载信息</p>
+        </div>
+
+        <!-- 上传区域 -->
+        <div class="upload-section">
+          <h3>📤 上传新头像</h3>
+
+          <div
+            class="upload-area"
+            id="uploadArea"
+            onclick="document.getElementById('fileInput').click()"
+          >
+            <div class="upload-icon">📷</div>
+            <p><strong>点击选择文件</strong> 或 拖拽文件到此处</p>
+            <p>支持 JPG, PNG, GIF 格式，最大 5MB</p>
+          </div>
+
+          <input
+            type="file"
+            id="fileInput"
+            class="file-input"
+            accept="image/*"
+            onchange="handleFileSelect(event)"
+          />
+
+          <!-- 预览区域 -->
+          <div class="preview-section" id="previewSection">
+            <h4>预览:</h4>
+            <img id="previewImage" class="preview-image" alt="预览图片" />
+            <div>
+              <button class="btn" onclick="uploadAvatar()" id="uploadBtn">
+                📤 上传头像
+              </button>
+              <button class="btn btn-danger" onclick="cancelPreview()">
+                ❌ 取消
+              </button>
+            </div>
+          </div>
+
+          <!-- 进度条 -->
+          <div class="progress-bar" id="progressBar">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+
+          <!-- 操作按钮 -->
+          <div style="text-align: center; margin-top: 20px">
+            <button
+              class="btn btn-danger"
+              onclick="resetToDefault()"
+              id="resetBtn"
+            >
+              🔄 重置为默认头像
+            </button>
+          </div>
+
+          <!-- 结果显示 -->
+          <div id="result" class="result"></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      let selectedFile = null;
+      let currentUserId = null;
+
+      // 登录状态检查（简化版，实际应用中应该检查JWT）
+      function getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+      }
+
+      // 加载用户信息
+      async function loadUserInfo() {
+        const userId = document.getElementById('userId').value.trim();
+        if (!userId) {
+          showResult('请输入用户ID', 'error');
+          return;
+        }
+
+        try {
+          const response = await fetch(`/api/users/${userId}`);
+          const result = await response.json();
+
+          if (result.success) {
+            currentUserId = userId;
+            const user = result.data;
+            document.getElementById('userDisplayName').textContent =
+              `${user.username} (${user.email || '未设置邮箱'})`;
+
+            // 更新当前头像
+            const avatarImg = document.getElementById('currentAvatar');
+            avatarImg.src =
+              user.avatarUrl || '/images/avatars/default-avatar.svg';
+
+            showResult('用户信息加载成功', 'success');
+          } else {
+            showResult(result.message || '加载用户信息失败', 'error');
+          }
+        } catch (error) {
+          showResult('网络错误，请重试', 'error');
+          console.error('Error:', error);
+        }
+      }
+
+      // 拖拽上传
+      const uploadArea = document.getElementById('uploadArea');
+
+      uploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadArea.classList.add('dragover');
+      });
+
+      uploadArea.addEventListener('dragleave', () => {
+        uploadArea.classList.remove('dragover');
+      });
+
+      uploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+          handleFile(files[0]);
+        }
+      });
+
+      // 文件选择处理
+      function handleFileSelect(event) {
+        const file = event.target.files[0];
+        if (file) {
+          handleFile(file);
+        }
+      }
+
+      // 处理文件
+      function handleFile(file) {
+        // 验证文件类型
+        if (!file.type.startsWith('image/')) {
+          showResult('请选择图片文件', 'error');
+          return;
+        }
+
+        // 验证文件大小（5MB）
+        if (file.size > 5 * 1024 * 1024) {
+          showResult('文件大小不能超过 5MB', 'error');
+          return;
+        }
+
+        selectedFile = file;
+
+        // 显示预览
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          document.getElementById('previewImage').src = e.target.result;
+          document.getElementById('previewSection').style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+      }
+
+      // 取消预览
+      function cancelPreview() {
+        selectedFile = null;
+        document.getElementById('previewSection').style.display = 'none';
+        document.getElementById('fileInput').value = '';
+      }
+
+      // 上传头像
+      async function uploadAvatar() {
+        if (!currentUserId) {
+          showResult('请先加载用户信息', 'error');
+          return;
+        }
+
+        if (!selectedFile) {
+          showResult('请选择要上传的文件', 'error');
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append('avatar', selectedFile);
+
+        // 显示进度条
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
+        const uploadBtn = document.getElementById('uploadBtn');
+
+        progressBar.style.display = 'block';
+        uploadBtn.disabled = true;
+        uploadBtn.textContent = '上传中...';
+
+        try {
+          const response = await fetch(`/api/users/${currentUserId}/avatar`, {
+            method: 'POST',
+            body: formData,
+            credentials: 'include', // 包含cookies
+          });
+
+          const result = await response.json();
+
+          if (result.success) {
+            // 更新头像显示
+            document.getElementById('currentAvatar').src =
+              result.data.avatarUrl + '?t=' + Date.now();
+            showResult('头像上传成功！', 'success');
+            cancelPreview();
+          } else {
+            showResult(result.message || '上传失败', 'error');
+          }
+        } catch (error) {
+          showResult('网络错误，请重试', 'error');
+          console.error('Error:', error);
+        } finally {
+          // 隐藏进度条
+          progressBar.style.display = 'none';
+          uploadBtn.disabled = false;
+          uploadBtn.textContent = '📤 上传头像';
+          progressFill.style.width = '0%';
+        }
+      }
+
+      // 重置为默认头像
+      async function resetToDefault() {
+        if (!currentUserId) {
+          showResult('请先加载用户信息', 'error');
+          return;
+        }
+
+        if (!confirm('确定要重置为默认头像吗？')) {
+          return;
+        }
+
+        const resetBtn = document.getElementById('resetBtn');
+        resetBtn.disabled = true;
+        resetBtn.textContent = '重置中...';
+
+        try {
+          const response = await fetch(
+            `/api/users/${currentUserId}/avatar/reset`,
+            {
+              method: 'POST',
+              credentials: 'include',
+            },
+          );
+
+          const result = await response.json();
+
+          if (result.success) {
+            document.getElementById('currentAvatar').src =
+              result.data.avatarUrl + '?t=' + Date.now();
+            showResult('头像已重置为默认头像', 'success');
+          } else {
+            showResult(result.message || '重置失败', 'error');
+          }
+        } catch (error) {
+          showResult('网络错误，请重试', 'error');
+          console.error('Error:', error);
+        } finally {
+          resetBtn.disabled = false;
+          resetBtn.textContent = '🔄 重置为默认头像';
+        }
+      }
+
+      // 显示结果
+      function showResult(message, type) {
+        const resultDiv = document.getElementById('result');
+        resultDiv.textContent = message;
+        resultDiv.className = `result ${type}`;
+        resultDiv.style.display = 'block';
+
+        // 3秒后自动隐藏
+        setTimeout(() => {
+          resultDiv.style.display = 'none';
+        }, 3000);
+      }
+
+      // 模拟进度（实际应用中可以使用XMLHttpRequest监听上传进度）
+      function simulateProgress() {
+        const progressFill = document.getElementById('progressFill');
+        let progress = 0;
+        const interval = setInterval(() => {
+          progress += Math.random() * 30;
+          if (progress > 90) {
+            clearInterval(interval);
+            progress = 90;
+          }
+          progressFill.style.width = progress + '%';
+        }, 200);
+
+        return interval;
+      }
+    </script>
+  </body>
+</html>

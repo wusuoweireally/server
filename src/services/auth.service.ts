@@ -10,14 +10,14 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  async validateUser(id: string, password: string): Promise<User | null> {
+  async validateUser(id: number, password: string): Promise<User | null> {
     return await this.userService.validateUser(id, password);
   }
 
   login(user: User) {
     const payload = { username: user.username, sub: user.id };
     const token = this.jwtService.sign(payload, {
-      expiresIn: '180d', // 180天过期
+      expiresIn: '60d', // 60天过期
     });
 
     return {

@@ -97,7 +97,7 @@ export class UserService {
   }
 
   // 验证用户登录
-  async validateUser(id: string, password: string): Promise<User | null> {
+  async validateUser(id: number, password: string): Promise<User | null> {
     const user = await this.userRepository.findOne({
       where: { id, status: 1 },
     });
@@ -110,7 +110,7 @@ export class UserService {
   }
 
   // 根据ID查找用户
-  async findById(id: string): Promise<User> {
+  async findById(id: number): Promise<User> {
     const user = await this.userRepository.findOne({
       where: { id },
     });
@@ -153,7 +153,7 @@ export class UserService {
   }
 
   // 更新用户信息
-  async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
+  async update(id: number, updateUserDto: UpdateUserDto): Promise<User> {
     const user = await this.findById(id);
 
     // 检查用户名是否已存在（如果要更新用户名）
@@ -194,15 +194,22 @@ export class UserService {
   }
 
   // 删除用户
-  async remove(id: string): Promise<void> {
+  async remove(id: number): Promise<void> {
     const user = await this.findById(id);
     await this.userRepository.remove(user);
   }
 
   // 禁用/启用用户
-  async toggleStatus(id: string): Promise<User> {
+  async toggleStatus(id: number): Promise<User> {
     const user = await this.findById(id);
     user.status = user.status === 1 ? 0 : 1;
+    return await this.userRepository.save(user);
+  }
+
+  // 更新用户头像
+  async updateAvatar(id: number, avatarUrl: string): Promise<User> {
+    const user = await this.findById(id);
+    user.avatarUrl = avatarUrl;
     return await this.userRepository.save(user);
   }
 }

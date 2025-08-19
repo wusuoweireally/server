@@ -8,8 +8,8 @@ import {
 
 @Entity('users')
 export class User {
-  @PrimaryColumn('bigint')
-  id: string;
+  @PrimaryColumn('int')
+  id: number;
 
   @Column({ length: 50, unique: true })
   username: string;

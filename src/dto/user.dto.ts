@@ -3,15 +3,14 @@ import {
   IsEmail,
   IsOptional,
   IsNotEmpty,
-  Matches,
+  IsNumber,
   Length,
 } from 'class-validator';
 
 export class CreateUserDto {
-  @IsString()
+  @IsNumber({}, { message: '用户ID必须是数字' })
   @IsNotEmpty({ message: '用户ID不能为空' })
-  @Matches(/^\d+$/, { message: '用户ID必须是数字' })
-  id: string;
+  id: number;
 
   @IsOptional()
   @IsString()
@@ -53,9 +52,9 @@ export class UpdateUserDto {
 }
 
 export class LoginDto {
-  @IsString()
+  @IsNumber({}, { message: '用户ID必须是数字' })
   @IsNotEmpty({ message: '用户ID不能为空' })
-  id: string;
+  id: number;
 
   @IsString()
   @IsNotEmpty({ message: '密码不能为空' })
