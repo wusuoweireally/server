@@ -6,7 +6,11 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like } from 'typeorm';
 import { User } from '../entities/user.entity';
-import { CreateUserDto, UpdateUserDto } from '../dto/user.dto';
+import {
+  CreateUserDto,
+  UpdateUserDto,
+  CreateUserWithAvatarDto,
+} from '../dto/user.dto';
 import * as bcrypt from 'bcryptjs';
 
 @Injectable()
@@ -90,10 +94,57 @@ export class UserService {
       username,
       email: createUserDto.email,
       passwordHash: hashedPassword,
-      avatarUrl: createUserDto.avatarUrl || 'defaultAvatar.png', // 设置默认头像
+      avatarUrl: createUserDto.avatarUrl || 'defaultAvatar.webp', // 设置默认头像
     });
 
     return await this.userRepository.save(user);
+  }
+
+  // 创建用户并处理头像文件
+  async createWithAvatar(
+    createUserDto: CreateUserWithAvatarDto,
+    avatarFile?: Express.Multer.File,
+  ): Promise<User> {
+    let avatarUrl = 'defaultAvatar.webp'; // 默认头像
+
+    // 处理头像文件
+    if (avatarFile) {
+      const uniqueSuffix = Date.now();
+      const fileExt = require('path').extname(avatarFile.originalname);
+      const filename = `user_${createUserDto.id}_${uniqueSuffix}${fileExt}`;
+      avatarUrl = filename;
+
+      // 保存文件到磁盘
+      const fs = require('fs');
+      const path = require('path');
+      const uploadDir = './public/images/avatars';
+
+      // 确保目录存在
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+
+      const filePath = path.join(uploadDir, filename);
+
+      // 使用stream方式写入文件，避免内存问题
+      const stream = fs.createWriteStream(filePath);
+      if (avatarFile.buffer) {
+        stream.write(avatarFile.buffer);
+      } else {
+        // 如果buffer不存在，使用其他方式写入
+        const fileContent = fs.readFileSync(avatarFile.path);
+        stream.write(fileContent);
+      }
+      stream.end();
+    }
+
+    // 使用现有的创建逻辑
+    const userData: CreateUserDto = {
+      ...createUserDto,
+      avatarUrl,
+    };
+
+    return this.create(userData);
   }
 
   // 验证用户登录

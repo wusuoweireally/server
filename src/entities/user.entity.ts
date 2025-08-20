@@ -24,7 +24,7 @@ export class User {
     name: 'avatar_url',
     length: 500,
     nullable: true,
-    default: 'defaultAvatar.png', // ← 设置默认头像
+    default: 'defaultAvatar.webp', // ← 设置默认头像
   })
   avatarUrl: string;
 
