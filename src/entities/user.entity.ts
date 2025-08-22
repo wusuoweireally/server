@@ -8,7 +8,7 @@ import {
 
 @Entity('users')
 export class User {
-  @PrimaryColumn('int')
+  @PrimaryColumn('bigint')
   id: number;
 
   @Column({ length: 50, unique: true })
@@ -24,9 +24,12 @@ export class User {
     name: 'avatar_url',
     length: 500,
     nullable: true,
-    default: 'defaultAvatar.webp', // ← 设置默认头像
+    default: 'defaultAvatar.webp',
   })
   avatarUrl: string;
+
+  @Column({ type: 'text', nullable: true })
+  bio: string;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
