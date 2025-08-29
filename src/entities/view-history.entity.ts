@@ -10,9 +10,9 @@ import {
 import { User } from './user.entity';
 import { Wallpaper } from './wallpaper.entity';
 
-@Entity('user_likes')
-export class UserLike {
-  @PrimaryGeneratedColumn({ type: 'bigint', comment: '点赞ID' })
+@Entity('view_history')
+export class ViewHistory {
+  @PrimaryGeneratedColumn({ type: 'bigint', comment: '浏览记录ID' })
   id: number;
 
   @Column({ name: 'user_id', type: 'bigint', comment: '用户ID' })
@@ -31,8 +31,7 @@ export class UserLike {
   @JoinColumn({ name: 'wallpaper_id' })
   wallpaper: Wallpaper;
 
-  @Index('uk_user_wallpaper', ['userId', 'wallpaperId'], { unique: true })
-  @CreateDateColumn({ name: 'created_at', comment: '创建时间' })
-  @Index('idx_created_at')
-  createdAt: Date;
+  @CreateDateColumn({ name: 'viewed_at', comment: '浏览时间' })
+  @Index('idx_viewed_at')
+  viewedAt: Date;
 }

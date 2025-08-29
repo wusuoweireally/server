@@ -13,8 +13,8 @@ import { JwtStrategy } from '../auth/jwt.strategy';
     TypeOrmModule.forFeature([User]),
     PassportModule,
     JwtModule.register({
-      secret: 'your-secret-key', // 生产环境中应该使用环境变量
-      signOptions: { expiresIn: '180d' },
+      secret: process.env.JWT_SECRET || 'your-secret-key',
+      signOptions: { expiresIn: process.env.JWT_EXPIRES_IN || '180d' },
     }),
   ],
   controllers: [UserController],

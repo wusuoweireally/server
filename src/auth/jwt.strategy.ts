@@ -20,8 +20,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
           return cookies?.Authentication || null;
         },
       ]),
-      ignoreExpiration: false,
-      secretOrKey: 'your-secret-key', // 生产环境中应该使用环境变量
+      ignoreExpiration: true,
+      secretOrKey: process.env.JWT_SECRET || 'your-secret-key', // 使用环境变量
     });
   }
 

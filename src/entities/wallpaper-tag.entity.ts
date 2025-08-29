@@ -1,6 +1,5 @@
 import {
   Entity,
-  Column,
   CreateDateColumn,
   Index,
   ManyToOne,
@@ -12,10 +11,11 @@ import { Tag } from './tag.entity';
 
 @Entity('wallpaper_tags')
 export class WallpaperTag {
-  @PrimaryColumn({ name: 'wallpaper_id', type: 'bigint' })
+  @PrimaryColumn({ name: 'wallpaper_id', type: 'bigint', comment: '壁纸ID' })
   wallpaperId: number;
 
-  @PrimaryColumn({ name: 'tag_id', type: 'int' })
+  @PrimaryColumn({ name: 'tag_id', type: 'int', comment: '标签ID' })
+  @Index('idx_tag_id')
   tagId: number;
 
   @ManyToOne(() => Wallpaper, { onDelete: 'CASCADE' })
@@ -26,9 +26,6 @@ export class WallpaperTag {
   @JoinColumn({ name: 'tag_id' })
   tag: Tag;
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ name: 'created_at', comment: '创建时间' })
   createdAt: Date;
-
-  @Index('idx_tag_id')
-  // 索引将在@Column()中通过options定义
 }

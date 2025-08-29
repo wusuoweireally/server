@@ -11,19 +11,39 @@ import {
   UploadedFile,
   BadRequestException,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import type { Request } from 'express';
 import { WallpaperService } from '../services/wallpaper.service';
 import { UploadService } from '../services/upload.service';
-import { CreateWallpaperDto, WallpaperQueryDto } from '../dto/wallpaper.dto';
+import {
+  CreateWallpaperDto,
+  UpdateWallpaperDto,
+  WallpaperQueryDto,
+} from '../dto/wallpaper.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../decorators/current-user.decorator';
+import { TagService } from '../services/tag.service';
+import { ViewHistoryService } from '../services/view-history.service';
+
+interface CreateWallpaperData extends CreateWallpaperDto {
+  fileUrl: string;
+  thumbnailUrl?: string;
+  fileSize: number;
+  width: number;
+  height: number;
+  format: string;
+  aspectRatio: number;
+}
 
 @Controller('wallpapers')
 export class WallpaperController {
   constructor(
     private readonly wallpaperService: WallpaperService,
     private readonly uploadService: UploadService,
+    private readonly tagService: TagService,
+    private readonly viewHistoryService: ViewHistoryService,
   ) {}
 
   /**
@@ -50,17 +70,19 @@ export class WallpaperController {
       console.log(createWallpaperDto);
 
       // 创建壁纸记录
+      const createData: CreateWallpaperData = {
+        ...createWallpaperDto,
+        ...fileInfo,
+      };
+
       const wallpaper = await this.wallpaperService.create(
-        {
-          ...createWallpaperDto,
-          ...fileInfo,
-        } as any,
+        createData,
         user.userId,
       );
 
       // 处理标签关联
       if (createWallpaperDto.tags && createWallpaperDto.tags.length > 0) {
-        await this.wallpaperService.handleWallpaperTags(
+        await this.tagService.processWallpaperTags(
           wallpaper.id,
           createWallpaperDto.tags,
         );
@@ -71,8 +93,11 @@ export class WallpaperController {
         message: '壁纸上传成功',
         data: wallpaper,
       };
-    } catch (error: any) {
-      throw new BadRequestException(error.message || '上传失败');
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new BadRequestException(error.message || '上传失败');
+      }
+      throw new BadRequestException('上传失败');
     }
   }
 
@@ -84,7 +109,6 @@ export class WallpaperController {
     const {
       page = 1,
       limit = 20,
-      search,
       sortBy = 'createdAt',
       sortOrder = 'DESC',
       tags,
@@ -99,7 +123,6 @@ export class WallpaperController {
     const result = await this.wallpaperService.findAll(
       Number(page),
       Number(limit),
-      search,
       sortBy,
       sortOrder,
       tags,
@@ -127,15 +150,41 @@ export class WallpaperController {
    * 获取壁纸详情
    */
   @Get(':id')
-  async getWallpaper(@Param('id') id: string) {
+  @UseGuards(JwtAuthGuard)
+  async getWallpaper(@Param('id') id: string, @Req() request: Request) {
     const wallpaper = await this.wallpaperService.findById(Number(id));
 
     // 增加查看次数
     await this.wallpaperService.incrementViewCount(Number(id));
 
+    // 记录浏览历史（如果用户已登录）
+    const userId = (request.user as { userId?: number })?.userId;
+    if (userId) {
+      await this.viewHistoryService.createViewHistory({
+        userId,
+        wallpaperId: Number(id),
+      });
+    }
+
     return {
       success: true,
       data: wallpaper,
+    };
+  }
+
+  /**
+   * 获取壁纸的标签
+   */
+  @Get(':id/tags')
+  async getWallpaperTags(@Param('id') id: string) {
+    // 验证壁纸是否存在
+    await this.wallpaperService.findById(Number(id));
+
+    const tags = await this.tagService.getTagsByWallpaperId(Number(id));
+
+    return {
+      success: true,
+      data: tags,
     };
   }
 
@@ -146,7 +195,7 @@ export class WallpaperController {
   @UseGuards(JwtAuthGuard)
   async updateWallpaper(
     @Param('id') id: string,
-    @Body() updateData: any,
+    @Body() updateData: UpdateWallpaperDto,
     @CurrentUser() user: { userId: number; username: string },
   ) {
     // 验证用户权限

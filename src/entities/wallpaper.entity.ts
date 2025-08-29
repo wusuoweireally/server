@@ -12,82 +12,89 @@ import { User } from './user.entity';
 
 @Entity('wallpapers')
 export class Wallpaper {
-  @PrimaryGeneratedColumn({ type: 'bigint' })
+  @PrimaryGeneratedColumn({ type: 'bigint', comment: '壁纸ID' })
   id: number;
 
-  @Column({ length: 200 })
-  title: string;
-
-  @Column({ type: 'text', nullable: true })
-  description: string;
-
-  @Column({ name: 'file_url', length: 500 })
+  @Column({ name: 'file_url', length: 500, comment: '壁纸文件URL' })
   fileUrl: string;
 
-  @Column({ name: 'thumbnail_url', length: 500, nullable: true })
+  @Column({
+    type: 'enum',
+    enum: ['general', 'anime', 'people'],
+    default: 'general',
+    comment: '分类: general-通用, anime-动画, people-人物',
+  })
+  @Index('idx_category')
+  category: 'general' | 'anime' | 'people';
+
+  @Column({
+    name: 'thumbnail_url',
+    length: 500,
+    nullable: true,
+    comment: '缩略图URL',
+  })
   thumbnailUrl: string;
 
-  @Column({ name: 'file_size', type: 'bigint' })
+  @Column({ name: 'file_size', type: 'bigint', comment: '文件大小(字节)' })
   fileSize: number;
 
-  @Column({ type: 'int' })
+  @Column({ type: 'int', comment: '图片宽度' })
   width: number;
 
-  @Column({ type: 'int' })
+  @Column({ type: 'int', comment: '图片高度' })
   height: number;
 
-  @Column({ name: 'aspect_ratio', type: 'decimal', precision: 5, scale: 2, nullable: true })
+  @Column({
+    name: 'aspect_ratio',
+    type: 'decimal',
+    precision: 5,
+    scale: 2,
+    nullable: true,
+    comment: '宽高比',
+  })
+  @Index('idx_aspect_ratio')
   aspectRatio: number;
 
-  @Column({ length: 10 })
-  format: string;
-
-  @Column({ name: 'uploader_id', type: 'bigint' })
+  @Column({ name: 'uploader_id', type: 'bigint', comment: '上传者ID' })
+  @Index('idx_uploader_id')
   uploaderId: number;
 
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'uploader_id' })
   uploader: User;
 
-  @Column({ name: 'view_count', type: 'int', default: 0 })
+  @Column({ name: 'view_count', type: 'int', default: 0, comment: '浏览次数' })
   viewCount: number;
 
-  @Column({ name: 'like_count', type: 'int', default: 0 })
+  @Column({ name: 'like_count', type: 'int', default: 0, comment: '点赞数' })
+  @Index('idx_like_count')
   likeCount: number;
 
-  @Column({ name: 'favorite_count', type: 'int', default: 0 })
+  @Column({
+    name: 'favorite_count',
+    type: 'int',
+    default: 0,
+    comment: '收藏数',
+  })
   favoriteCount: number;
 
-  @Column({ type: 'tinyint', default: 0 })
+  @Column({ type: 'tinyint', default: 1, comment: '状态 0:未审核 1:已审核' })
+  @Index('idx_status')
   status: number;
 
-  @Column({ name: 'is_featured', type: 'boolean', default: false })
+  @Column({
+    name: 'is_featured',
+    type: 'boolean',
+    default: false,
+    comment: '是否推荐',
+  })
+  @Index('idx_is_featured')
   isFeatured: boolean;
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ name: 'created_at', comment: '创建时间' })
+  @Index('idx_created_at')
   createdAt: Date;
 
-  @UpdateDateColumn({ name: 'updated_at' })
+  @UpdateDateColumn({ name: 'updated_at', comment: '更新时间' })
   updatedAt: Date;
-
-  @Index('idx_uploader_id')
-  // 索引将在@Column()中通过options定义
-
-  @Index('idx_status')
-  // 索引将在@Column()中通过options定义
-
-  @Index('idx_is_featured')
-  // 索引将在@Column()中通过options定义
-
-  @Index('idx_created_at')
-  // 索引将在@CreateDateColumn中自动创建
-
-  @Index('idx_like_count')
-  // 索引将在@Column()中通过options定义
-
-  @Index('idx_format')
-  // 索引将在@Column()中通过options定义
-
-  @Index('idx_aspect_ratio')
-  // 索引将在@Column()中通过options定义
 }

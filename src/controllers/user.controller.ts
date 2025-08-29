@@ -24,13 +24,9 @@ import { extname } from 'path';
 import type { Request, Response } from 'express';
 import { UserService } from '../services/user.service';
 import { AuthService } from '../services/auth.service';
-import {
-  CreateUserDto,
-  UpdateUserDto,
-  LoginDto,
-  CreateUserWithAvatarDto,
-} from '../dto/user.dto';
+import { CreateUserDto, UpdateUserDto, LoginDto } from '../dto/user.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { User } from '../entities/user.entity';
 
 @Controller('users')
 export class UserController {
@@ -39,99 +35,19 @@ export class UserController {
     private readonly authService: AuthService,
   ) {}
 
-  // 用户注册（支持JSON格式和文件上传）
+  // 用户注册（仅支持JSON格式，不支持头像上传）
   @Post('register')
-  @UseInterceptors(
-    FileInterceptor('avatar', {
-      storage: diskStorage({
-        destination: './public/images/avatars',
-        filename: (_, file, cb) => {
-          const uniqueSuffix = Date.now();
-          const fileExt = extname(file.originalname);
-          cb(null, `temp_${uniqueSuffix}${fileExt}`);
-        },
-      }),
-      fileFilter: (_, file, cb) => {
-        if (!file.originalname.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
-          return cb(new BadRequestException('只允许上传图片文件!'), false);
-        }
-        cb(null, true);
-      },
-      limits: { fileSize: 5 * 1024 * 1024 }, // 5MB限制
-    }),
-  )
-  async register(
-    @Body() formData: any,
-    @UploadedFile() avatarFile?: Express.Multer.File,
-  ) {
-    try {
-      let userData = formData;
+  async register(@Body() createUserDto: CreateUserDto) {
+    const user = await this.userService.create(createUserDto);
 
-      // 调试输出，查看实际接收到的数据
-      console.log('接收到的formData:', formData);
-      console.log('接收到的avatarFile:', avatarFile);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { passwordHash, ...result } = user;
 
-      // 如果是FormData上传，NestJS会将字段解析为对象属性
-      // 前端使用 formData.append('id', '100002') 等方式直接添加字段
-      if (formData && typeof formData === 'object' && avatarFile) {
-        // FormData模式，直接使用formData中的字段
-        userData = formData;
-      }
-
-      // 手动验证DTO字段
-      const errors: string[] = [];
-
-      if (!userData.id) {
-        errors.push('用户ID不能为空');
-      } else if (isNaN(Number(userData.id))) {
-        errors.push('用户ID必须是数字');
-      }
-
-      if (!userData.password) {
-        errors.push('密码不能为空');
-      } else if (userData.password.length < 6) {
-        errors.push('密码长度至少6位');
-      }
-
-      if (errors.length > 0) {
-        throw new BadRequestException(errors.join(', '));
-      }
-
-      // 转换数据类型
-      const createUserData: CreateUserWithAvatarDto = {
-        id: Number(userData.id),
-        username: userData.username,
-        email: userData.email,
-        password: userData.password,
-      };
-
-      const user = await this.userService.createWithAvatar(
-        createUserData,
-        avatarFile,
-      );
-      // 返回时不包含密码哈希
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { passwordHash, ...result } = user;
-
-      return {
-        success: true,
-        message: '注册成功',
-        data: result,
-      };
-    } catch (error) {
-      if (error instanceof SyntaxError) {
-        // 如果是JSON解析错误，回退到原来的注册方式
-        const user = await this.userService.create(formData as CreateUserDto);
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { passwordHash, ...result } = user;
-        return {
-          success: true,
-          message: '注册成功',
-          data: result,
-        };
-      }
-      throw error;
-    }
+    return {
+      success: true,
+      message: '注册成功',
+      data: result,
+    };
   }
 
   // 用户登录
@@ -183,11 +99,11 @@ export class UserController {
   @UseGuards(JwtAuthGuard)
   async getProfile(@Req() request: Request) {
     // 从JWT token中获取用户ID
-    const userId = (request.user as any)?.userId;
+    const userId = (request.user as { userId?: number })?.userId;
     if (!userId) {
       throw new UnauthorizedException('用户未认证');
     }
-    
+
     const user = await this.userService.findById(userId);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { passwordHash, ...result } = user;
@@ -209,7 +125,7 @@ export class UserController {
     const pageNum = Number(page) || 1;
     const limitNum = Number(limit) || 10;
 
-    let result;
+    let result: { users: User[]; total: number };
     if (username) {
       result = await this.userService.findByUsername(
         username,
@@ -221,13 +137,11 @@ export class UserController {
     }
 
     // 移除密码哈希
-    const users = result.users.map(
-      (user: { [x: string]: any; passwordHash: any }) => {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-unsafe-assignment
-        const { passwordHash, ...userWithoutPassword } = user;
-        return userWithoutPassword;
-      },
-    );
+    const users = result.users.map((user: User) => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { passwordHash, ...userWithoutPassword } = user;
+      return userWithoutPassword;
+    });
 
     return {
       success: true,
@@ -302,7 +216,7 @@ export class UserController {
   @UseInterceptors(
     FileInterceptor('avatar', {
       storage: diskStorage({
-        destination: './public/images/avatars',
+        destination: './uploads/profile-pictures',
         filename: (req, file, cb) => {
           const userId = req.params.id;
           const uniqueSuffix = Date.now();
@@ -310,13 +224,13 @@ export class UserController {
           cb(null, `user_${userId}_${uniqueSuffix}${fileExt}`);
         },
       }),
-      fileFilter: (req, file, cb) => {
-        if (!file.originalname.match(/\.(jpg|jpeg|png|gif)$/i)) {
+      fileFilter: (_req, file, cb) => {
+        if (!file.originalname.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
           return cb(new BadRequestException('只允许上传图片文件!'), false);
         }
         cb(null, true);
       },
-      limits: { fileSize: 5 * 1024 * 1024 }, // 5MB限制
+      limits: { fileSize: 20 * 1024 * 1024 }, // 20MB限制
     }),
   )
   async uploadAvatar(
@@ -327,7 +241,7 @@ export class UserController {
       throw new BadRequestException('请选择要上传的头像文件');
     }
 
-    const avatarUrl = `/images/avatars/${file.filename}`;
+    const avatarUrl = `${file.filename}`;
     const updatedUser = await this.userService.updateAvatar(id, avatarUrl);
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -338,29 +252,6 @@ export class UserController {
       message: '头像上传成功',
       data: {
         avatarUrl,
-        user: result,
-      },
-    };
-  }
-
-  // 重置为默认头像
-  @Post(':id/avatar/reset')
-  @UseGuards(JwtAuthGuard)
-  async resetAvatar(@Param('id') id: number) {
-    const defaultAvatarUrl = '/images/avatars/defaultAvatar.webp';
-    const updatedUser = await this.userService.updateAvatar(
-      id,
-      defaultAvatarUrl,
-    );
-
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { passwordHash, ...result } = updatedUser;
-
-    return {
-      success: true,
-      message: '头像已重置为默认头像',
-      data: {
-        avatarUrl: defaultAvatarUrl,
         user: result,
       },
     };
