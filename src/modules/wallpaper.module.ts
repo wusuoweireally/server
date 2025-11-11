@@ -10,12 +10,21 @@ import { Wallpaper } from '../entities/wallpaper.entity';
 import { WallpaperTag } from '../entities/wallpaper-tag.entity';
 import { Tag } from '../entities/tag.entity';
 import { ViewHistory } from '../entities/view-history.entity';
+import { UserLike } from '../entities/user-like.entity';
+import { UserFavorite } from '../entities/user-favorite.entity';
 import { TagModule } from './tag.module';
 
 @Module({
   imports: [
     HttpModule,
-    TypeOrmModule.forFeature([Wallpaper, WallpaperTag, Tag, ViewHistory]),
+    TypeOrmModule.forFeature([
+      Wallpaper,
+      WallpaperTag,
+      Tag,
+      ViewHistory,
+      UserLike,
+      UserFavorite,
+    ]),
     TagModule,
   ],
   controllers: [WallpaperController],

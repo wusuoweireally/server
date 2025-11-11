@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThan } from 'typeorm';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { ViewHistory } from '../entities/view-history.entity';
 import { CreateViewHistoryDto } from '../dto/view-history.dto';
 
@@ -42,26 +43,32 @@ export class ViewHistoryService {
   }
 
   /**
-   * 获取用户最近30天的浏览记录
+   * 获取用户最近30天的浏览记录（支持分页）
    */
-  async getUserViewHistory(userId: number): Promise<ViewHistory[]> {
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  async getUserViewHistory(
+    userId: number,
+    page: number = 1,
+    limit: number = 20,
+  ): Promise<{ data: ViewHistory[]; total: number }> {
+    const skip = (page - 1) * limit;
 
-    return await this.viewHistoryRepository.find({
+    const [data, total] = await this.viewHistoryRepository.findAndCount({
       where: {
         userId,
-        viewedAt: LessThan(new Date()), // 确保不会包含未来的记录
       },
       relations: ['wallpaper', 'wallpaper.uploader'],
       order: { viewedAt: 'DESC' },
-      take: 100, // 限制返回数量
+      skip,
+      take: limit,
     });
+
+    return { data, total };
   }
 
   /**
    * 清理30天前的浏览记录
    */
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async cleanupOldViewHistory(): Promise<void> {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);

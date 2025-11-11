@@ -11,10 +11,8 @@ import {
   UploadedFile,
   BadRequestException,
   UseGuards,
-  Req,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import type { Request } from 'express';
 import { WallpaperService } from '../services/wallpaper.service';
 import { UploadService } from '../services/upload.service';
 import {
@@ -57,6 +55,7 @@ export class WallpaperController {
     @Body() createWallpaperDto: CreateWallpaperDto,
     @CurrentUser() user: { userId: number; username: string },
   ) {
+    console.log(user);
     if (!file) {
       throw new BadRequestException('请选择要上传的文件');
     }
@@ -151,24 +150,36 @@ export class WallpaperController {
    */
   @Get(':id')
   @UseGuards(JwtAuthGuard)
-  async getWallpaper(@Param('id') id: string, @Req() request: Request) {
+  async getWallpaper(
+    @Param('id') id: string,
+    @CurrentUser() user: { userId: number; username: string },
+  ) {
     const wallpaper = await this.wallpaperService.findById(Number(id));
 
     // 增加查看次数
     await this.wallpaperService.incrementViewCount(Number(id));
 
-    // 记录浏览历史（如果用户已登录）
-    const userId = (request.user as { userId?: number })?.userId;
-    if (userId) {
-      await this.viewHistoryService.createViewHistory({
-        userId,
-        wallpaperId: Number(id),
-      });
-    }
+    // 记录浏览历史
+    await this.viewHistoryService.createViewHistory({
+      userId: user.userId,
+      wallpaperId: Number(id),
+    });
+
+    // 检查用户是否已点赞和收藏
+    const [isLiked, isFavorited] = await Promise.all([
+      this.wallpaperService.hasLiked(Number(id), user.userId),
+      this.wallpaperService.hasFavorited(Number(id), user.userId),
+    ]);
 
     return {
       success: true,
-      data: wallpaper,
+      data: {
+        ...wallpaper,
+        isLiked,
+        isFavorited,
+        // 添加 uploaderName 字段以方便前端使用
+        uploaderName: wallpaper.uploader?.username || '未知用户',
+      },
     };
   }
 
@@ -250,8 +261,11 @@ export class WallpaperController {
    */
   @Post(':id/like')
   @UseGuards(JwtAuthGuard)
-  async likeWallpaper(@Param('id') id: string) {
-    await this.wallpaperService.incrementLikeCount(Number(id));
+  async likeWallpaper(
+    @Param('id') id: string,
+    @CurrentUser() user: { userId: number; username: string },
+  ) {
+    await this.wallpaperService.incrementLikeCount(user.userId, Number(id));
 
     return {
       success: true,
@@ -264,8 +278,11 @@ export class WallpaperController {
    */
   @Post(':id/unlike')
   @UseGuards(JwtAuthGuard)
-  async unlikeWallpaper(@Param('id') id: string) {
-    await this.wallpaperService.decrementLikeCount(Number(id));
+  async unlikeWallpaper(
+    @Param('id') id: string,
+    @CurrentUser() user: { userId: number; username: string },
+  ) {
+    await this.wallpaperService.decrementLikeCount(user.userId, Number(id));
 
     return {
       success: true,
@@ -278,8 +295,11 @@ export class WallpaperController {
    */
   @Post(':id/favorite')
   @UseGuards(JwtAuthGuard)
-  async favoriteWallpaper(@Param('id') id: string) {
-    await this.wallpaperService.incrementFavoriteCount(Number(id));
+  async favoriteWallpaper(
+    @Param('id') id: string,
+    @CurrentUser() user: { userId: number; username: string },
+  ) {
+    await this.wallpaperService.incrementFavoriteCount(user.userId, Number(id));
 
     return {
       success: true,
@@ -292,8 +312,11 @@ export class WallpaperController {
    */
   @Post(':id/unfavorite')
   @UseGuards(JwtAuthGuard)
-  async unfavoriteWallpaper(@Param('id') id: string) {
-    await this.wallpaperService.decrementFavoriteCount(Number(id));
+  async unfavoriteWallpaper(
+    @Param('id') id: string,
+    @CurrentUser() user: { userId: number; username: string },
+  ) {
+    await this.wallpaperService.decrementFavoriteCount(user.userId, Number(id));
 
     return {
       success: true,
@@ -313,33 +336,6 @@ export class WallpaperController {
     return {
       success: true,
       data: wallpapers,
-    };
-  }
-
-  /**
-   * 根据上传者获取壁纸
-   */
-  @Get('uploader/:uploaderId')
-  async getWallpapersByUploader(
-    @Param('uploaderId') uploaderId: string,
-    @Query('page') page: string = '1',
-    @Query('limit') limit: string = '20',
-  ) {
-    const result = await this.wallpaperService.findByUploaderId(
-      Number(uploaderId),
-      Number(page),
-      Number(limit),
-    );
-
-    return {
-      success: true,
-      data: result.data,
-      pagination: {
-        page: Number(page),
-        limit: Number(limit),
-        total: result.total,
-        pages: Math.ceil(result.total / Number(limit)),
-      },
     };
   }
 }

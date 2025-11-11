@@ -32,6 +32,12 @@ npm run start:prod
 
 # 运行测试
 npm run test
+
+# 运行ESLint检查
+npx eslint src/
+
+# 运行TypeScript类型检查
+npx tsc --noEmit
 ```
 
 ## 核心架构
@@ -39,6 +45,7 @@ npm run test
 ### 模块结构
 - **UserModule** - 用户管理、认证、头像上传
 - **WallpaperModule** - 壁纸核心功能（上传、搜索、管理）
+- **TagModule** - 标签管理功能
 
 ### 认证系统
 - JWT token存储在HTTP-only Cookie中
@@ -55,6 +62,7 @@ npm run test
 - Wallpaper - 壁纸元数据和文件信息
 - Tag/WallpaperTag - 标签系统
 - UserFavorite/UserLike - 用户交互记录
+- ViewHistory - 浏览历史记录
 
 ## API特性
 
@@ -70,3 +78,37 @@ npm run test
 - 静态文件服务已配置，可通过 `/uploads/` 路径访问
 - 数据库配置在 `src/config/database.config.ts`
 - JWT密钥通过环境变量 `JWT_SECRET` 配置
+
+## 项目结构
+
+### 后端架构 (server/src/)
+```
+├── main.ts                # 应用入口文件
+├── app.module.ts          # 根模块
+├── config/                # 配置文件
+│   └── database.config.ts # 数据库配置
+├── modules/               # 功能模块
+│   ├── user.module.ts     # 用户模块
+│   ├── wallpaper.module.ts # 壁纸模块
+│   └── tag.module.ts      # 标签模块
+├── controllers/           # 控制器层
+├── services/              # 服务层
+├── entities/              # 数据实体
+├── dto/                   # 数据传输对象
+├── auth/                  # 认证相关
+├── decorators/            # 自定义装饰器
+└── uploads/               # 上传文件目录
+```
+
+## 测试
+
+- 使用 Jest 进行单元测试和端到端测试
+- 测试文件位于 `test/` 目录
+- 运行 `npm run test` 执行所有测试
+- 单个测试文件运行: `npm run test -- test/app.e2e-spec.ts`
+
+## 代码质量
+
+- 使用 ESLint + Prettier 进行代码格式化
+- TypeScript 严格类型检查
+- 遵循 NestJS 最佳实践

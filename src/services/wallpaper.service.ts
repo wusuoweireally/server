@@ -3,6 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Wallpaper } from '../entities/wallpaper.entity';
 import { WallpaperTag } from '../entities/wallpaper-tag.entity';
+import { UserLike } from '../entities/user-like.entity';
+import { UserFavorite } from '../entities/user-favorite.entity';
 import { CreateWallpaperDto } from '../dto/wallpaper.dto';
 import { TagService } from './tag.service';
 
@@ -11,6 +13,10 @@ export class WallpaperService {
   constructor(
     @InjectRepository(Wallpaper)
     private readonly wallpaperRepository: Repository<Wallpaper>,
+    @InjectRepository(UserLike)
+    private readonly userLikeRepository: Repository<UserLike>,
+    @InjectRepository(UserFavorite)
+    private readonly userFavoriteRepository: Repository<UserFavorite>,
     private tagService: TagService,
   ) {}
 
@@ -188,31 +194,117 @@ export class WallpaperService {
   }
 
   /**
-   * 增加点赞次数
+   * 检查用户是否已点赞
    */
-  async incrementLikeCount(id: number): Promise<void> {
-    await this.wallpaperRepository.increment({ id }, 'likeCount', 1);
+  async hasLiked(wallpaperId: number, userId: number): Promise<boolean> {
+    const like = await this.userLikeRepository.findOne({
+      where: { wallpaperId, userId },
+    });
+    return !!like;
   }
 
   /**
-   * 减少点赞次数
+   * 增加点赞次数（同时创建用户点赞记录）
    */
-  async decrementLikeCount(id: number): Promise<void> {
-    await this.wallpaperRepository.decrement({ id }, 'likeCount', 1);
+  async incrementLikeCount(userId: number, wallpaperId: number): Promise<void> {
+    // 检查是否已点赞
+    const existingLike = await this.userLikeRepository.findOne({
+      where: { userId, wallpaperId },
+    });
+
+    // 如果未点赞，创建点赞记录并增加计数
+    if (!existingLike) {
+      const userLike = this.userLikeRepository.create({
+        userId,
+        wallpaperId,
+      });
+      await this.userLikeRepository.save(userLike);
+      await this.wallpaperRepository.increment(
+        { id: wallpaperId },
+        'likeCount',
+        1,
+      );
+    }
   }
 
   /**
-   * 增加收藏次数
+   * 减少点赞次数（同时删除用户点赞记录）
    */
-  async incrementFavoriteCount(id: number): Promise<void> {
-    await this.wallpaperRepository.increment({ id }, 'favoriteCount', 1);
+  async decrementLikeCount(userId: number, wallpaperId: number): Promise<void> {
+    // 查找并删除点赞记录
+    const result = await this.userLikeRepository.delete({
+      userId,
+      wallpaperId,
+    });
+
+    // 如果删除成功，减少计数
+    if (result.affected && result.affected > 0) {
+      await this.wallpaperRepository.decrement(
+        { id: wallpaperId },
+        'likeCount',
+        1,
+      );
+    }
   }
 
   /**
-   * 减少收藏次数
+   * 检查用户是否已收藏
    */
-  async decrementFavoriteCount(id: number): Promise<void> {
-    await this.wallpaperRepository.decrement({ id }, 'favoriteCount', 1);
+  async hasFavorited(wallpaperId: number, userId: number): Promise<boolean> {
+    const favorite = await this.userFavoriteRepository.findOne({
+      where: { wallpaperId, userId },
+    });
+    return !!favorite;
+  }
+
+  /**
+   * 增加收藏次数（同时创建用户收藏记录）
+   */
+  async incrementFavoriteCount(
+    userId: number,
+    wallpaperId: number,
+  ): Promise<void> {
+    // 检查是否已收藏
+    const existingFavorite = await this.userFavoriteRepository.findOne({
+      where: { userId, wallpaperId },
+    });
+
+    // 如果未收藏，创建收藏记录并增加计数
+    if (!existingFavorite) {
+      const userFavorite = this.userFavoriteRepository.create({
+        userId,
+        wallpaperId,
+      });
+      await this.userFavoriteRepository.save(userFavorite);
+      await this.wallpaperRepository.increment(
+        { id: wallpaperId },
+        'favoriteCount',
+        1,
+      );
+    }
+  }
+
+  /**
+   * 减少收藏次数（同时删除用户收藏记录）
+   */
+  async decrementFavoriteCount(
+    userId: number,
+    wallpaperId: number,
+  ): Promise<void> {
+    // 查找并删除收藏记录
+    const result = await this.userFavoriteRepository.delete({
+      userId,
+      wallpaperId,
+    });
+
+    // 如果删除成功，减少计数
+    if (result.affected && result.affected > 0) {
+      await this.wallpaperRepository.decrement(
+        { id: wallpaperId },
+        'favoriteCount',
+        1,
+      );
+    }
   }
 
   /**
@@ -223,6 +315,11 @@ export class WallpaperService {
     page: number = 1,
     limit: number = 20,
   ): Promise<{ data: Wallpaper[]; total: number }> {
+    // 验证上传者ID的有效性
+    if (!uploaderId || isNaN(uploaderId) || uploaderId <= 0) {
+      throw new NotFoundException('上传者ID无效');
+    }
+
     const skip = (page - 1) * limit;
 
     const [data, total] = await this.wallpaperRepository.findAndCount({
@@ -246,5 +343,55 @@ export class WallpaperService {
       order: { likeCount: 'DESC', viewCount: 'DESC' },
       take: limit,
     });
+  }
+
+  /**
+   * 获取用户点赞的壁纸列表（分页）
+   */
+  async getUserLikedWallpapers(
+    userId: number,
+    page: number = 1,
+    limit: number = 20,
+  ): Promise<{ data: Wallpaper[]; total: number }> {
+    const skip = (page - 1) * limit;
+
+    const [likes, total] = await this.userLikeRepository.findAndCount({
+      where: { userId },
+      relations: ['wallpaper', 'wallpaper.uploader'],
+      order: { createdAt: 'DESC' },
+      skip,
+      take: limit,
+    });
+
+    const wallpapers = likes
+      .map((like) => like.wallpaper)
+      .filter((wallpaper) => wallpaper && wallpaper.status === 1);
+
+    return { data: wallpapers, total };
+  }
+
+  /**
+   * 获取用户收藏的壁纸列表（分页）
+   */
+  async getUserFavoritedWallpapers(
+    userId: number,
+    page: number = 1,
+    limit: number = 20,
+  ): Promise<{ data: Wallpaper[]; total: number }> {
+    const skip = (page - 1) * limit;
+
+    const [favorites, total] = await this.userFavoriteRepository.findAndCount({
+      where: { userId },
+      relations: ['wallpaper', 'wallpaper.uploader'],
+      order: { createdAt: 'DESC' },
+      skip,
+      take: limit,
+    });
+
+    const wallpapers = favorites
+      .map((favorite) => favorite.wallpaper)
+      .filter((wallpaper) => wallpaper && wallpaper.status === 1);
+
+    return { data: wallpapers, total };
   }
 }

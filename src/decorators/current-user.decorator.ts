@@ -1,4 +1,8 @@
-import { createParamDecorator, ExecutionContext } from '@nestjs/common';
+import {
+  createParamDecorator,
+  ExecutionContext,
+  UnauthorizedException,
+} from '@nestjs/common';
 
 export interface CurrentUserType {
   userId: number;
@@ -6,8 +10,20 @@ export interface CurrentUserType {
 }
 
 export const CurrentUser = createParamDecorator(
-  (data: unknown, ctx: ExecutionContext): CurrentUserType => {
-    const request = ctx.switchToHttp().getRequest();
-    return request.user as CurrentUserType;
+  (_data: unknown, ctx: ExecutionContext): CurrentUserType => {
+    const request = ctx.switchToHttp().getRequest<{ user?: CurrentUserType }>();
+    const user = request.user;
+
+    // 验证用户信息的有效性
+    if (!user || !user.userId || !user.username) {
+      throw new UnauthorizedException('用户认证信息无效');
+    }
+
+    // 验证用户ID的有效性
+    if (isNaN(user.userId) || user.userId <= 0) {
+      throw new UnauthorizedException('用户ID无效');
+    }
+
+    return user;
   },
 );

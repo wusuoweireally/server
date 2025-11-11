@@ -99,6 +99,11 @@ export class UserService {
 
   // 验证用户登录
   async validateUser(id: number, password: string): Promise<User | null> {
+    // 验证ID的有效性
+    if (!id || isNaN(id) || id <= 0) {
+      return null;
+    }
+
     const user = await this.userRepository.findOne({
       where: { id, status: 1 },
     });
@@ -112,6 +117,11 @@ export class UserService {
 
   // 根据ID查找用户
   async findById(id: number): Promise<User> {
+    // 验证ID的有效性
+    if (!id || isNaN(id) || id <= 0) {
+      throw new NotFoundException('用户ID无效');
+    }
+
     const user = await this.userRepository.findOne({
       where: { id },
     });

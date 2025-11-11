@@ -24,8 +24,11 @@ import { extname } from 'path';
 import type { Request, Response } from 'express';
 import { UserService } from '../services/user.service';
 import { AuthService } from '../services/auth.service';
+import { WallpaperService } from '../services/wallpaper.service';
+import { ViewHistoryService } from '../services/view-history.service';
 import { CreateUserDto, UpdateUserDto, LoginDto } from '../dto/user.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { CurrentUser } from '../decorators/current-user.decorator';
 import { User } from '../entities/user.entity';
 
 @Controller('users')
@@ -33,6 +36,8 @@ export class UserController {
   constructor(
     private readonly userService: UserService,
     private readonly authService: AuthService,
+    private readonly wallpaperService: WallpaperService,
+    private readonly viewHistoryService: ViewHistoryService,
   ) {}
 
   // 用户注册（仅支持JSON格式，不支持头像上传）
@@ -100,8 +105,10 @@ export class UserController {
   async getProfile(@Req() request: Request) {
     // 从JWT token中获取用户ID
     const userId = (request.user as { userId?: number })?.userId;
-    if (!userId) {
-      throw new UnauthorizedException('用户未认证');
+
+    // 验证用户ID的有效性
+    if (!userId || isNaN(userId) || userId <= 0) {
+      throw new UnauthorizedException('用户未认证或认证信息无效');
     }
 
     const user = await this.userService.findById(userId);
@@ -155,27 +162,20 @@ export class UserController {
     };
   }
 
-  // 根据ID查询用户
-  @Get(':id')
-  @UseGuards(JwtAuthGuard)
-  async findOne(@Param('id') id: number) {
-    const user = await this.userService.findById(id);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { passwordHash, ...result } = user;
-    return {
-      success: true,
-      data: result,
-    };
-  }
-
   // 更新用户信息
   @Patch(':id')
   @UseGuards(JwtAuthGuard)
   async update(
-    @Param('id') id: number,
+    @Param('id') id: string,
     @Body(ValidationPipe) updateUserDto: UpdateUserDto,
   ) {
-    const user = await this.userService.update(id, updateUserDto);
+    // 转换并验证ID
+    const userId = Number(id);
+    if (isNaN(userId) || userId <= 0) {
+      throw new BadRequestException('用户ID无效2');
+    }
+
+    const user = await this.userService.update(userId, updateUserDto);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { passwordHash, ...result } = user;
     return {
@@ -188,8 +188,14 @@ export class UserController {
   // 删除用户
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
-  async remove(@Param('id') id: number) {
-    await this.userService.remove(id);
+  async remove(@Param('id') id: string) {
+    // 转换并验证ID
+    const userId = Number(id);
+    if (isNaN(userId) || userId <= 0) {
+      throw new BadRequestException('用户ID无效3');
+    }
+
+    await this.userService.remove(userId);
     return {
       success: true,
       message: '删除成功',
@@ -199,8 +205,14 @@ export class UserController {
   // 禁用/启用用户
   @Patch(':id/toggle-status')
   @UseGuards(JwtAuthGuard)
-  async toggleStatus(@Param('id') id: number) {
-    const user = await this.userService.toggleStatus(id);
+  async toggleStatus(@Param('id') id: string) {
+    // 转换并验证ID
+    const userId = Number(id);
+    if (isNaN(userId) || userId <= 0) {
+      throw new BadRequestException('用户ID无效4');
+    }
+
+    const user = await this.userService.toggleStatus(userId);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { passwordHash, ...result } = user;
     return {
@@ -234,15 +246,21 @@ export class UserController {
     }),
   )
   async uploadAvatar(
-    @Param('id') id: number,
+    @Param('id') id: string,
     @UploadedFile() file: Express.Multer.File,
   ) {
+    // 转换并验证ID
+    const userId = Number(id);
+    if (isNaN(userId) || userId <= 0) {
+      throw new BadRequestException('用户ID无效6');
+    }
+
     if (!file) {
       throw new BadRequestException('请选择要上传的头像文件');
     }
 
     const avatarUrl = `${file.filename}`;
-    const updatedUser = await this.userService.updateAvatar(id, avatarUrl);
+    const updatedUser = await this.userService.updateAvatar(userId, avatarUrl);
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { passwordHash, ...result } = updatedUser;
@@ -254,6 +272,160 @@ export class UserController {
         avatarUrl,
         user: result,
       },
+    };
+  }
+
+  /**
+   * 获取用户点赞的壁纸列表
+   */
+  @Get('likes')
+  @UseGuards(JwtAuthGuard)
+  async getUserLikes(
+    @CurrentUser() user: { userId: number; username: string },
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '20',
+  ) {
+    console.log(user);
+    console.log(page);
+    console.log(limit);
+    const result = await this.wallpaperService.getUserLikedWallpapers(
+      user.userId,
+      Number(page),
+      Number(limit),
+    );
+
+    const { data, total } = result;
+    const limitCount: number = Number(limit) || 20;
+    const totalCount: number = typeof total === 'number' ? total : 0;
+    const safeData = Array.isArray(data) ? data : [];
+
+    return {
+      success: true,
+      data: safeData,
+      pagination: {
+        page: Number(page),
+        limit: limitCount,
+        total: totalCount,
+        pages: Math.ceil(totalCount / limitCount),
+      },
+    };
+  }
+
+  /**
+   * 获取用户收藏的壁纸列表
+   */
+  @Get('favorites')
+  @UseGuards(JwtAuthGuard)
+  async getUserFavorites(
+    @CurrentUser() user: { userId: number; username: string },
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '20',
+  ) {
+    const result = await this.wallpaperService.getUserFavoritedWallpapers(
+      user.userId,
+      Number(page),
+      Number(limit),
+    );
+
+    const { data, total } = result;
+    const limitCount: number = Number(limit) || 20;
+    const totalCount: number = typeof total === 'number' ? total : 0;
+    const safeData = Array.isArray(data) ? data : [];
+
+    return {
+      success: true,
+      data: safeData,
+      pagination: {
+        page: Number(page),
+        limit: limitCount,
+        total: totalCount,
+        pages: Math.ceil(totalCount / limitCount),
+      },
+    };
+  }
+
+  /**
+   * 获取用户浏览记录
+   */
+  @Get('view-history')
+  @UseGuards(JwtAuthGuard)
+  async getUserViewHistory(
+    @CurrentUser() user: { userId: number; username: string },
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '20',
+  ) {
+    const result = await this.viewHistoryService.getUserViewHistory(
+      user.userId,
+      Number(page),
+      Number(limit),
+    );
+
+    const { data, total } = result;
+    const limitCount: number = Number(limit) || 20;
+    const totalCount: number = typeof total === 'number' ? total : 0;
+    const safeData = Array.isArray(data) ? data : [];
+
+    return {
+      success: true,
+      data: safeData,
+      pagination: {
+        page: Number(page),
+        limit: limitCount,
+        total: totalCount,
+        pages: Math.ceil(totalCount / limitCount),
+      },
+    };
+  }
+  /**
+   * 获取当前用户上传的壁纸列表
+   */
+  @Get('wallpapers')
+  @UseGuards(JwtAuthGuard)
+  async getUserWallpapers(
+    @CurrentUser() user: { userId: number; username: string },
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '20',
+  ) {
+    console.log(user);
+    const result = await this.wallpaperService.findByUploaderId(
+      user.userId,
+      Number(page),
+      Number(limit),
+    );
+
+    const { data, total } = result;
+    const limitCount: number = Number(limit) || 20;
+    const totalCount: number = typeof total === 'number' ? total : 0;
+    const safeData = Array.isArray(data) ? data : [];
+
+    return {
+      success: true,
+      data: safeData,
+      pagination: {
+        page: Number(page),
+        limit: limitCount,
+        total: totalCount,
+        pages: Math.ceil(totalCount / limitCount),
+      },
+    };
+  }
+  // 根据ID查询用户
+  @Get(':id')
+  @UseGuards(JwtAuthGuard)
+  async findOne(@Param('id') id: string) {
+    // 转换并验证ID
+    const userId = Number(id);
+    console.log(id);
+    if (isNaN(userId) || userId <= 0) {
+      throw new BadRequestException('用户ID无效 fava');
+    }
+
+    const user = await this.userService.findById(userId);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { passwordHash, ...result } = user;
+    return {
+      success: true,
+      data: result,
     };
   }
 }

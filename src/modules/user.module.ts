@@ -7,6 +7,7 @@ import { UserService } from '../services/user.service';
 import { AuthService } from '../services/auth.service';
 import { UserController } from '../controllers/user.controller';
 import { JwtStrategy } from '../auth/jwt.strategy';
+import { WallpaperModule } from './wallpaper.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { JwtStrategy } from '../auth/jwt.strategy';
       secret: process.env.JWT_SECRET || 'your-secret-key',
       signOptions: { expiresIn: process.env.JWT_EXPIRES_IN || '180d' },
     }),
+    WallpaperModule,
   ],
   controllers: [UserController],
   providers: [UserService, AuthService, JwtStrategy],
