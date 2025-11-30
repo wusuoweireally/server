@@ -7,8 +7,11 @@ import {
   Index,
   ManyToOne,
   JoinColumn,
+  ManyToMany,
+  JoinTable,
 } from 'typeorm';
 import { User } from './user.entity';
+import { Tag } from './tag.entity';
 
 @Entity('wallpapers')
 export class Wallpaper {
@@ -26,6 +29,12 @@ export class Wallpaper {
   })
   @Index('idx_category')
   category: 'general' | 'anime' | 'people';
+
+  @Column({ length: 255, nullable: true, comment: '壁纸标题' })
+  title: string;
+
+  @Column({ type: 'text', nullable: true, comment: '壁纸描述' })
+  description: string;
 
   @Column({
     name: 'thumbnail_url',
@@ -64,6 +73,7 @@ export class Wallpaper {
   uploader: User;
 
   @Column({ name: 'view_count', type: 'int', default: 0, comment: '浏览次数' })
+  @Index('idx_view_count_desc')
   viewCount: number;
 
   @Column({ name: 'like_count', type: 'int', default: 0, comment: '点赞数' })
@@ -92,9 +102,18 @@ export class Wallpaper {
   isFeatured: boolean;
 
   @CreateDateColumn({ name: 'created_at', comment: '创建时间' })
-  @Index('idx_created_at')
+  @Index('idx_created_at_desc')
   createdAt: Date;
 
   @UpdateDateColumn({ name: 'updated_at', comment: '更新时间' })
   updatedAt: Date;
+
+  // 标签关联
+  @ManyToMany(() => Tag, (tag) => tag.wallpapers)
+  @JoinTable({
+    name: 'wallpaper_tags',
+    joinColumn: { name: 'wallpaper_id', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'tag_id', referencedColumnName: 'id' },
+  })
+  tags: Tag[];
 }

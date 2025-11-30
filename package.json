@@ -11,7 +11,13 @@
     "start:dev": "nest start --watch",
     "dev": "nodemon",
     "start:prod": "node dist/main",
-    "test": "jest"
+    "test": "jest",
+    "typeorm": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js -d ./src/config/data-source.ts",
+    "typeorm:generate": "npm run typeorm -- migration:generate",
+    "typeorm:run": "npm run typeorm -- migration:run",
+    "typeorm:revert": "npm run typeorm -- migration:revert",
+    "typeorm:show": "npm run typeorm -- migration:show",
+    "typeorm:create": "npm run typeorm -- migration:create src/migrations/"
   },
   "dependencies": {
     "@nestjs/axios": "^4.0.1",

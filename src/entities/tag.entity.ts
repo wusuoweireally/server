@@ -4,7 +4,9 @@ import {
   PrimaryGeneratedColumn,
   CreateDateColumn,
   Index,
+  ManyToMany,
 } from 'typeorm';
+import { Wallpaper } from './wallpaper.entity';
 
 @Entity('tags')
 export class Tag {
@@ -24,4 +26,8 @@ export class Tag {
 
   @CreateDateColumn({ name: 'created_at', comment: '创建时间' })
   createdAt: Date;
+
+  // 壁纸关联
+  @ManyToMany(() => Wallpaper, (wallpaper) => wallpaper.tags)
+  wallpapers: Wallpaper[];
 }

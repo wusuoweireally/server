@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UserService } from './user.service';
 import { User } from '../entities/user.entity';
+import { UserRole } from '../entities/user.entity';
 
 @Injectable()
 export class AuthService {
@@ -15,7 +16,7 @@ export class AuthService {
   }
 
   login(user: User) {
-    const payload = { username: user.username, sub: user.id };
+    const payload = { username: user.username, sub: user.id, role: user.role };
     const token = this.jwtService.sign(payload, {
       expiresIn: process.env.JWT_EXPIRES_IN || '60d', // 使用环境变量或默认60天
       secret: process.env.JWT_SECRET || 'your-secret-key', // 使用环境变量
@@ -30,6 +31,7 @@ export class AuthService {
         avatarUrl: user.avatarUrl,
         bio: user.bio,
         status: user.status,
+        role: user.role,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
       },

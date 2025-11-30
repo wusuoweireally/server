@@ -76,4 +76,16 @@ export class WallpaperQueryDto {
   @IsString()
   @IsOptional()
   category?: 'general' | 'anime' | 'people';
+
+  @IsString()
+  @IsOptional()
+  format?: string;
+
+  @IsNumberString()
+  @IsOptional()
+  minFileSize?: string;
+
+  @IsNumberString()
+  @IsOptional()
+  maxFileSize?: string;
 }

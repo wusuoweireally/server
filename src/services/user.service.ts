@@ -5,8 +5,9 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like } from 'typeorm';
-import { User } from '../entities/user.entity';
+import { User, UserRole } from '../entities/user.entity';
 import { CreateUserDto, UpdateUserDto } from '../dto/user.dto';
+import { AdminUpdateUserDto, AdminUserQueryDto } from '../dto/admin.dto';
 import * as bcrypt from 'bcryptjs';
 
 @Injectable()
@@ -37,7 +38,10 @@ export class UserService {
   }
 
   // 创建用户
-  async create(createUserDto: CreateUserDto): Promise<User> {
+  async create(
+    createUserDto: CreateUserDto,
+    roleOverride: UserRole = UserRole.USER,
+  ): Promise<User> {
     // 检查用户ID是否已存在
     const existingUser = await this.userRepository.findOne({
       where: { id: createUserDto.id },
@@ -85,6 +89,9 @@ export class UserService {
     // 加密密码
     const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
 
+    const userRole =
+      roleOverride === UserRole.ADMIN ? UserRole.ADMIN : UserRole.USER;
+
     const user = this.userRepository.create({
       id: createUserDto.id,
       username,
@@ -92,6 +99,7 @@ export class UserService {
       passwordHash: hashedPassword,
       avatarUrl: 'defaultAvatar.png', // 默认头像
       bio: createUserDto.bio || '',
+      role: userRole,
     });
 
     return await this.userRepository.save(user);
@@ -223,10 +231,82 @@ export class UserService {
     return await this.userRepository.save(user);
   }
 
+  async setStatus(id: number, status: number): Promise<User> {
+    const user = await this.findById(id);
+    user.status = status === 1 ? 1 : 0;
+    return await this.userRepository.save(user);
+  }
+
   // 更新用户头像
   async updateAvatar(id: number, avatarUrl: string): Promise<User> {
     const user = await this.findById(id);
     user.avatarUrl = avatarUrl;
     return await this.userRepository.save(user);
+  }
+
+  async adminQueryUsers(
+    query: AdminUserQueryDto,
+  ): Promise<{ data: User[]; total: number }> {
+    const { page = 1, limit = 20, keyword, status, role } = query;
+    const qb = this.userRepository.createQueryBuilder('user');
+
+    if (keyword) {
+      qb.andWhere(
+        '(user.username LIKE :keyword OR user.email LIKE :keyword)',
+        { keyword: `%${keyword}%` },
+      );
+    }
+
+    if (status !== undefined) {
+      qb.andWhere('user.status = :status', { status });
+    }
+
+    if (role) {
+      qb.andWhere('user.role = :role', { role });
+    }
+
+    const [data, total] = await qb
+      .orderBy('user.createdAt', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
+
+    return { data, total };
+  }
+
+  async adminUpdateUser(
+    id: number,
+    updateDto: AdminUpdateUserDto,
+  ): Promise<User> {
+    const baseFields: UpdateUserDto = {
+      username: updateDto.username,
+      email: updateDto.email,
+      password: updateDto.password,
+      avatarUrl: updateDto.avatarUrl,
+      bio: updateDto.bio,
+    };
+
+    const updated = await this.update(id, baseFields);
+
+    let shouldSave = false;
+
+    if (
+      updateDto.status !== undefined &&
+      updateDto.status !== updated.status
+    ) {
+      updated.status = updateDto.status === 1 ? 1 : 0;
+      shouldSave = true;
+    }
+
+    if (updateDto.role && updateDto.role !== updated.role) {
+      updated.role = updateDto.role;
+      shouldSave = true;
+    }
+
+    if (shouldSave) {
+      await this.userRepository.save(updated);
+    }
+
+    return updated;
   }
 }

@@ -8,7 +8,9 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { UserModule } from './modules/user.module';
 import { WallpaperModule } from './modules/wallpaper.module';
 import { TagModule } from './modules/tag.module';
+import { ForumModule } from './modules/forum.module';
 import { databaseConfig } from './config/database.config';
+import { AdminModule } from './modules/admin.module';
 
 @Module({
   imports: [
@@ -22,6 +24,8 @@ import { databaseConfig } from './config/database.config';
     UserModule,
     WallpaperModule,
     TagModule,
+    ForumModule,
+    AdminModule,
   ],
 })
 export class AppModule {}

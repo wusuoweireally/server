@@ -6,6 +6,11 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
+export enum UserRole {
+  USER = 'user',
+  ADMIN = 'admin',
+}
+
 @Entity('users')
 export class User {
   @PrimaryColumn('bigint', { comment: '用户ID' })
@@ -40,4 +45,12 @@ export class User {
 
   @Column({ type: 'tinyint', default: 1, comment: '用户状态 1:正常 0:禁用' })
   status: number;
+
+  @Column({
+    type: 'enum',
+    enum: UserRole,
+    default: UserRole.USER,
+    comment: '用户角色',
+  })
+  role: UserRole;
 }

@@ -132,4 +132,53 @@ export class TagService {
       }
     }
   }
+
+  /**
+   * 替换指定壁纸的标签
+   */
+  async replaceWallpaperTags(
+    wallpaperId: number,
+    tagNames: string[],
+  ): Promise<Tag[]> {
+    const uniqueNames = Array.from(
+      new Set(
+        (tagNames || [])
+          .map((tag) => tag.trim())
+          .filter((tag) => tag.length > 0),
+      ),
+    );
+
+    const currentTags = await this.wallpaperTagRepository.find({
+      where: { wallpaperId },
+      relations: ['tag'],
+    });
+
+    if (currentTags.length > 0) {
+      await this.wallpaperTagRepository.delete({ wallpaperId });
+      for (const relation of currentTags) {
+        if (relation.tag && relation.tag.usageCount > 0) {
+          await this.decrementUsageCount(relation.tagId);
+        }
+      }
+    }
+
+    if (uniqueNames.length === 0) {
+      return [];
+    }
+
+    const tags: Tag[] = [];
+    for (const name of uniqueNames) {
+      const tag = await this.createTag({ name });
+      tags.push(tag);
+      await this.wallpaperTagRepository.save(
+        this.wallpaperTagRepository.create({
+          wallpaperId,
+          tagId: tag.id,
+        }),
+      );
+      await this.incrementUsageCount(tag.id);
+    }
+
+    return tags;
+  }
 }

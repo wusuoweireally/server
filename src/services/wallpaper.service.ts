@@ -7,6 +7,7 @@ import { UserLike } from '../entities/user-like.entity';
 import { UserFavorite } from '../entities/user-favorite.entity';
 import { CreateWallpaperDto } from '../dto/wallpaper.dto';
 import { TagService } from './tag.service';
+import { Tag } from '../entities/tag.entity';
 
 @Injectable()
 export class WallpaperService {
@@ -35,8 +36,10 @@ export class WallpaperService {
     },
     uploaderId: number,
   ): Promise<Wallpaper> {
+    // 创建壁纸记录，排除tags字段（通过关联表处理）
+    const { tags, ...wallpaperData } = createWallpaperDto;
     const wallpaper = this.wallpaperRepository.create({
-      ...createWallpaperDto,
+      ...wallpaperData,
       uploaderId,
     });
 
@@ -50,7 +53,7 @@ export class WallpaperService {
   async findById(id: number): Promise<Wallpaper> {
     const wallpaper = await this.wallpaperRepository.findOne({
       where: { id },
-      relations: ['uploader'],
+      relations: ['uploader', 'tags'],
     });
 
     if (!wallpaper) {
@@ -61,7 +64,7 @@ export class WallpaperService {
   }
 
   /**
-   * 分页查询壁纸列表
+   * 分页查询壁纸列表（支持搜索和多种筛选）
    */
   async findAll(
     page: number = 1,
@@ -75,18 +78,26 @@ export class WallpaperService {
     maxHeight?: number,
     aspectRatio?: number,
     category?: 'general' | 'anime' | 'people',
+    search?: string,
+    format?: string,
+    minFileSize?: number,
+    maxFileSize?: number,
   ): Promise<{ data: Wallpaper[]; total: number }> {
     const skip = (page - 1) * limit;
-    const where: { status: number; category?: string } = { status: 1 };
-
-    if (category) {
-      where.category = category;
-    }
 
     // 构建查询条件
     const queryBuilder = this.wallpaperRepository
       .createQueryBuilder('wallpaper')
       .where('wallpaper.status = :status', { status: 1 });
+
+    // 添加搜索条件
+    if (search && search.trim()) {
+      const searchTerm = `%${search.trim()}%`;
+      queryBuilder.andWhere(
+        '(wallpaper.title LIKE :search OR wallpaper.description LIKE :search)',
+        { search: searchTerm },
+      );
+    }
 
     // 添加分类筛选
     if (category) {
@@ -114,13 +125,30 @@ export class WallpaperService {
       });
     }
 
+    // 添加文件格式筛选
+    if (format) {
+      queryBuilder.andWhere('wallpaper.format = :format', { format });
+    }
+
+    // 添加文件大小筛选
+    if (minFileSize) {
+      queryBuilder.andWhere('wallpaper.fileSize >= :minFileSize', { minFileSize });
+    }
+    if (maxFileSize) {
+      queryBuilder.andWhere('wallpaper.fileSize <= :maxFileSize', { maxFileSize });
+    }
+
     // 添加标签筛选
     if (tags && tags.length > 0) {
       queryBuilder
-        .innerJoin('wallpaper_tags', 'wt', 'wallpaper.id = wt.wallpaper_id')
-        .innerJoin('tags', 't', 'wt.tag_id = t.id')
-        .andWhere('t.name IN (:...tags)', { tags });
+        .innerJoin('wallpaper.tags', 'tag')
+        .andWhere('tag.name IN (:...tags)', { tags });
     }
+
+    // 添加关联数据预加载 - 关键修复：在同一查询中处理关联关系
+    queryBuilder
+      .leftJoinAndSelect('wallpaper.uploader', 'uploader')
+      .leftJoinAndSelect('wallpaper.tags', 'tags');
 
     // 添加排序
     const validSortFields = [
@@ -131,18 +159,46 @@ export class WallpaperService {
       'width',
       'height',
       'aspectRatio',
+      'fileSize',
     ];
-    const sortField = validSortFields.includes(sortBy) ? sortBy : 'createdAt';
-    queryBuilder.orderBy(`wallpaper.${sortField}`, sortOrder);
 
-    // 执行分页查询
-    const [data, total] = await queryBuilder
-      .leftJoinAndSelect('wallpaper.uploader', 'uploader')
+    console.log(`📋 [壁纸列表] 排序参数: sortBy=${sortBy}, sortOrder=${sortOrder}`);
+
+    // 处理特殊排序逻辑
+    if (sortBy === 'random') {
+      // 随机排序
+      queryBuilder.orderBy('RAND()');
+      console.log(`📋 [壁纸列表] 使用随机排序`);
+    } else if (sortBy === 'popular') {
+      // 热门排序（按浏览量降序）
+      queryBuilder.orderBy('wallpaper.viewCount', 'DESC');
+      console.log(`📋 [壁纸列表] 使用热门排序(浏览量降序)`);
+    } else {
+      // 常规字段排序
+      const sortField = validSortFields.includes(sortBy) ? sortBy : 'createdAt';
+      queryBuilder.orderBy(`wallpaper.${sortField}`, sortOrder);
+      console.log(`📋 [壁纸列表] 使用字段排序: ${sortField} ${sortOrder}`);
+    }
+
+    // 执行完整的分页查询 - 修复：单次查询获取所有数据，保持排序
+    const [wallpapersWithRelations, total] = await queryBuilder
       .skip(skip)
       .take(limit)
       .getManyAndCount();
 
-    return { data, total };
+    // 添加排序验证日志
+    console.log(`📋 [壁纸列表] 查询结果: 总数=${total}, 当前页数据=${wallpapersWithRelations.length}`);
+    if (wallpapersWithRelations.length > 0) {
+      console.log(`📋 [壁纸列表] 排序验证(前5条):`);
+      wallpapersWithRelations.slice(0, 5).forEach((wallpaper, index) => {
+        const sortFieldValue = sortBy === 'popular' ? wallpaper.viewCount :
+                              sortBy === 'createdAt' ? wallpaper.createdAt.toISOString() :
+                              wallpaper[sortBy as keyof Wallpaper] || 'N/A';
+        console.log(`  ${index + 1}. ID:${wallpaper.id} ${sortBy}:${sortFieldValue} 浏览量:${wallpaper.viewCount} 创建时间:${wallpaper.createdAt}`);
+      });
+    }
+
+    return { data: wallpapersWithRelations, total };
   }
 
   /**
@@ -177,11 +233,7 @@ export class WallpaperService {
     // 4. 更新标签使用次数（减少）
     for (const tag of tags) {
       if (tag.usageCount > 0) {
-        await this.wallpaperRepository.decrement(
-          { id: tag.id },
-          'usageCount',
-          1,
-        );
+        await this.tagService.decrementUsageCount(tag.id);
       }
     }
   }
@@ -333,16 +385,83 @@ export class WallpaperService {
     return { data, total };
   }
 
+  async adminQueryWallpapers(
+    page: number = 1,
+    limit: number = 20,
+    filters: {
+      search?: string;
+      status?: number;
+      uploaderId?: number;
+      category?: 'general' | 'anime' | 'people';
+    } = {},
+  ): Promise<{ data: Wallpaper[]; total: number }> {
+    const qb = this.wallpaperRepository
+      .createQueryBuilder('wallpaper')
+      .leftJoinAndSelect('wallpaper.uploader', 'uploader')
+      .leftJoinAndSelect('wallpaper.tags', 'tags');
+
+    if (filters.search) {
+      qb.andWhere(
+        '(wallpaper.title LIKE :search OR wallpaper.description LIKE :search)',
+        { search: `%${filters.search}%` },
+      );
+    }
+
+    if (filters.status !== undefined) {
+      qb.andWhere('wallpaper.status = :status', { status: filters.status });
+    }
+
+    if (filters.uploaderId) {
+      qb.andWhere('wallpaper.uploaderId = :uploaderId', {
+        uploaderId: filters.uploaderId,
+      });
+    }
+
+    if (filters.category) {
+      qb.andWhere('wallpaper.category = :category', {
+        category: filters.category,
+      });
+    }
+
+    const [data, total] = await qb
+      .orderBy('wallpaper.createdAt', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
+
+    return { data, total };
+  }
+
+  async updateWallpaperTags(
+    wallpaperId: number,
+    tags: string[],
+  ): Promise<Tag[]> {
+    return this.tagService.replaceWallpaperTags(wallpaperId, tags);
+  }
+
   /**
    * 获取热门壁纸
+   * 按照浏览量降序排序
    */
   async getPopularWallpapers(limit: number = 10): Promise<Wallpaper[]> {
-    return await this.wallpaperRepository.find({
+    console.log(`🔥 [热门壁纸] 查询参数: limit=${limit}, 按浏览量降序排序`);
+
+    const wallpapers = await this.wallpaperRepository.find({
       where: { status: 1 },
-      relations: ['uploader'],
-      order: { likeCount: 'DESC', viewCount: 'DESC' },
+      relations: ['uploader', 'tags'],
+      order: { viewCount: 'DESC' }, // 直接按浏览量降序排列
       take: limit,
     });
+
+    console.log(`🔥 [热门壁纸] 查询结果数量: ${wallpapers.length}`);
+    if (wallpapers.length > 0) {
+      console.log(`🔥 [热门壁纸] 浏览量排序验证:`);
+      wallpapers.forEach((wallpaper, index) => {
+        console.log(`  ${index + 1}. ID:${wallpaper.id} 浏览量:${wallpaper.viewCount} 标题:${wallpaper.title || '无标题'} 创建时间:${wallpaper.createdAt}`);
+      });
+    }
+
+    return wallpapers;
   }
 
   /**

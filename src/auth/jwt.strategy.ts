@@ -2,10 +2,12 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { Request } from 'express';
+import { UserRole } from '../entities/user.entity';
 
 interface JwtPayload {
   sub: number;
   username: string;
+  role?: UserRole;
   iat?: number;
   exp?: number;
 }
@@ -36,6 +38,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('用户ID无效');
     }
 
-    return { userId: payload.sub, username: payload.username };
+    return {
+      userId: payload.sub,
+      username: payload.username,
+      role: payload.role || UserRole.USER,
+    };
   }
 }

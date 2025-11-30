@@ -117,6 +117,10 @@ export class WallpaperController {
       maxHeight,
       aspectRatio,
       category,
+      search,
+      format,
+      minFileSize,
+      maxFileSize,
     } = query;
 
     const result = await this.wallpaperService.findAll(
@@ -131,6 +135,10 @@ export class WallpaperController {
       maxHeight ? Number(maxHeight) : undefined,
       aspectRatio ? Number(aspectRatio) : undefined,
       category,
+      search,
+      format,
+      minFileSize ? Number(minFileSize) : undefined,
+      maxFileSize ? Number(maxFileSize) : undefined,
     );
 
     return {
@@ -142,6 +150,21 @@ export class WallpaperController {
         total: result.total,
         pages: Math.ceil(result.total / Number(limit)),
       },
+    };
+  }
+
+  /**
+   * 获取热门壁纸（必须放在 :id 路由之前，避免被参数化路由覆盖）
+   */
+  @Get('popular')
+  async getPopularWallpapers(@Query('limit') limit: string = '10') {
+    const wallpapers = await this.wallpaperService.getPopularWallpapers(
+      Number(limit),
+    );
+
+    return {
+      success: true,
+      data: wallpapers,
     };
   }
 
@@ -171,6 +194,19 @@ export class WallpaperController {
       this.wallpaperService.hasFavorited(Number(id), user.userId),
     ]);
 
+    // 处理上传者头像URL，确保返回完整可访问的URL
+    const uploader = wallpaper.uploader;
+    let avatarUrl: string | null = null;
+    if (uploader?.avatarUrl) {
+      // 如果头像URL是默认头像，返回默认路径
+      if (uploader.avatarUrl === 'defaultAvatar.png') {
+        avatarUrl = '/uploads/profile-pictures/defaultAvatar.png';
+      } else {
+        // 为用户上传的头像添加完整路径
+        avatarUrl = `/uploads/profile-pictures/${uploader.avatarUrl}`;
+      }
+    }
+
     return {
       success: true,
       data: {
@@ -179,6 +215,11 @@ export class WallpaperController {
         isFavorited,
         // 添加 uploaderName 字段以方便前端使用
         uploaderName: wallpaper.uploader?.username || '未知用户',
+        // 处理上传者头像URL
+        uploader: {
+          ...uploader,
+          avatarUrl,
+        },
       },
     };
   }
@@ -321,21 +362,6 @@ export class WallpaperController {
     return {
       success: true,
       message: '取消收藏成功',
-    };
-  }
-
-  /**
-   * 获取热门壁纸
-   */
-  @Get('popular')
-  async getPopularWallpapers(@Query('limit') limit: string = '10') {
-    const wallpapers = await this.wallpaperService.getPopularWallpapers(
-      Number(limit),
-    );
-
-    return {
-      success: true,
-      data: wallpapers,
     };
   }
 }
