@@ -88,4 +88,8 @@ export class WallpaperQueryDto {
   @IsNumberString()
   @IsOptional()
   maxFileSize?: string;
+
+  @IsString()
+  @IsOptional()
+  tagKeyword?: string;
 }

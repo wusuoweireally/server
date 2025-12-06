@@ -17,10 +17,7 @@ export class AuthService {
 
   login(user: User) {
     const payload = { username: user.username, sub: user.id, role: user.role };
-    const token = this.jwtService.sign(payload, {
-      expiresIn: process.env.JWT_EXPIRES_IN || '60d', // 使用环境变量或默认60天
-      secret: process.env.JWT_SECRET || 'your-secret-key', // 使用环境变量
-    });
+    const token = this.jwtService.sign(payload);
 
     return {
       access_token: token,

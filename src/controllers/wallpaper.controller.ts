@@ -11,8 +11,10 @@ import {
   UploadedFile,
   BadRequestException,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import type { Request } from 'express';
 import { WallpaperService } from '../services/wallpaper.service';
 import { UploadService } from '../services/upload.service';
 import {
@@ -21,6 +23,7 @@ import {
   WallpaperQueryDto,
 } from '../dto/wallpaper.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 import { CurrentUser } from '../decorators/current-user.decorator';
 import { TagService } from '../services/tag.service';
 import { ViewHistoryService } from '../services/view-history.service';
@@ -129,6 +132,7 @@ export class WallpaperController {
       sortBy,
       sortOrder,
       tags,
+      query.tagKeyword,
       minWidth ? Number(minWidth) : undefined,
       maxWidth ? Number(maxWidth) : undefined,
       minHeight ? Number(minHeight) : undefined,
@@ -172,27 +176,34 @@ export class WallpaperController {
    * 获取壁纸详情
    */
   @Get(':id')
-  @UseGuards(JwtAuthGuard)
-  async getWallpaper(
-    @Param('id') id: string,
-    @CurrentUser() user: { userId: number; username: string },
-  ) {
-    const wallpaper = await this.wallpaperService.findById(Number(id));
+  @UseGuards(OptionalJwtAuthGuard)
+  async getWallpaper(@Param('id') id: string, @Req() request: Request) {
+    const wallpaperId = Number(id);
+    if (isNaN(wallpaperId)) {
+      throw new BadRequestException('无效的壁纸ID');
+    }
+
+    const wallpaper = await this.wallpaperService.findById(wallpaperId);
 
     // 增加查看次数
-    await this.wallpaperService.incrementViewCount(Number(id));
+    await this.wallpaperService.incrementViewCount(wallpaperId);
 
-    // 记录浏览历史
-    await this.viewHistoryService.createViewHistory({
-      userId: user.userId,
-      wallpaperId: Number(id),
-    });
+    // 仅在用户已登录时记录浏览历史/点赞收藏状态
+    const authUser = request.user as { userId?: number; username?: string };
+    let isLiked = false;
+    let isFavorited = false;
 
-    // 检查用户是否已点赞和收藏
-    const [isLiked, isFavorited] = await Promise.all([
-      this.wallpaperService.hasLiked(Number(id), user.userId),
-      this.wallpaperService.hasFavorited(Number(id), user.userId),
-    ]);
+    if (authUser?.userId) {
+      await this.viewHistoryService.createViewHistory({
+        userId: authUser.userId,
+        wallpaperId,
+      });
+
+      [isLiked, isFavorited] = await Promise.all([
+        this.wallpaperService.hasLiked(wallpaperId, authUser.userId),
+        this.wallpaperService.hasFavorited(wallpaperId, authUser.userId),
+      ]);
+    }
 
     // 处理上传者头像URL，确保返回完整可访问的URL
     const uploader = wallpaper.uploader;

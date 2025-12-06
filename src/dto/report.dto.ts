@@ -51,4 +51,8 @@ export class GetReportsDto {
 
   @IsOptional()
   userId?: number;
+
+  @IsOptional()
+  @IsString()
+  keyword?: string;
 }

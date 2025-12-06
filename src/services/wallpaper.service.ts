@@ -72,6 +72,7 @@ export class WallpaperService {
     sortBy: string = 'createdAt',
     sortOrder: 'ASC' | 'DESC' = 'DESC',
     tags?: string[],
+    tagKeyword?: string,
     minWidth?: number,
     maxWidth?: number,
     minHeight?: number,
@@ -88,7 +89,10 @@ export class WallpaperService {
     // 构建查询条件
     const queryBuilder = this.wallpaperRepository
       .createQueryBuilder('wallpaper')
-      .where('wallpaper.status = :status', { status: 1 });
+      .where('wallpaper.status = :status', { status: 1 })
+      .leftJoinAndSelect('wallpaper.uploader', 'uploader')
+      .leftJoinAndSelect('wallpaper.tags', 'tags')
+      .distinct(true);
 
     // 添加搜索条件
     if (search && search.trim()) {
@@ -141,14 +145,15 @@ export class WallpaperService {
     // 添加标签筛选
     if (tags && tags.length > 0) {
       queryBuilder
-        .innerJoin('wallpaper.tags', 'tag')
-        .andWhere('tag.name IN (:...tags)', { tags });
+        .innerJoin('wallpaper.tags', 'filterTags')
+        .andWhere('filterTags.name IN (:...filterTags)', { filterTags: tags });
     }
 
-    // 添加关联数据预加载 - 关键修复：在同一查询中处理关联关系
-    queryBuilder
-      .leftJoinAndSelect('wallpaper.uploader', 'uploader')
-      .leftJoinAndSelect('wallpaper.tags', 'tags');
+    if (tagKeyword && tagKeyword.trim()) {
+      queryBuilder.andWhere('tags.name LIKE :tagKeyword', {
+        tagKeyword: `%${tagKeyword.trim()}%`,
+      });
+    }
 
     // 添加排序
     const validSortFields = [
@@ -210,19 +215,23 @@ export class WallpaperService {
   }
 
   /**
-   * 删除壁纸（包含标签关联清理和标签使用次数更新）
+   * 删除壁纸（包含标签/点赞/收藏等关联清理）
    */
   async delete(id: number): Promise<void> {
     // 1. 查询壁纸的所有关联标签（使用TagService）
     const tags = await this.tagService.getTagsByWallpaperId(id);
 
-    // 2. 删除壁纸标签关联记录
-    await this.wallpaperRepository
-      .createQueryBuilder()
-      .delete()
-      .from(WallpaperTag)
-      .where('wallpaperId = :wallpaperId', { wallpaperId: id })
-      .execute();
+    // 2. 删除所有用户的点赞/收藏记录，避免残留关系数据
+    await Promise.all([
+      this.userLikeRepository.delete({ wallpaperId: id }),
+      this.userFavoriteRepository.delete({ wallpaperId: id }),
+      this.wallpaperRepository
+        .createQueryBuilder()
+        .delete()
+        .from(WallpaperTag)
+        .where('wallpaperId = :wallpaperId', { wallpaperId: id })
+        .execute(),
+    ]);
 
     // 3. 删除壁纸记录
     const result = await this.wallpaperRepository.delete(id);

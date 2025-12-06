@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Tag } from '../entities/tag.entity';
@@ -13,6 +13,13 @@ export class TagService {
     @InjectRepository(WallpaperTag)
     private wallpaperTagRepository: Repository<WallpaperTag>,
   ) {}
+
+  private generateSlug(name: string): string {
+    return name
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, '-');
+  }
 
   /**
    * 搜索标签
@@ -37,26 +44,72 @@ export class TagService {
    */
   async createTag(createTagDto: CreateTagDto): Promise<Tag> {
     const { name } = createTagDto;
+    const normalizedName = name.trim();
+    const slug = this.generateSlug(normalizedName);
 
     // 检查标签是否已存在
     const existingTag = await this.tagRepository.findOne({
-      where: { name },
+      where: { slug },
     });
 
     if (existingTag) {
       return existingTag;
     }
 
-    // 生成slug（将名称转换为小写，空格替换为连字符）
-    const slug = name.toLowerCase().replace(/\s+/g, '-');
-
     const tag = this.tagRepository.create({
-      name,
+      name: normalizedName,
       slug,
       usageCount: 0,
     });
 
     return this.tagRepository.save(tag);
+  }
+
+  /**
+   * 获取标签分页列表
+   */
+  async getTagsWithPagination(query: {
+    page?: number;
+    limit?: number;
+    keyword?: string;
+    sortBy?: string;
+    sortOrder?: 'ASC' | 'DESC';
+  }): Promise<{ data: Tag[]; total: number; page: number; limit: number }> {
+    const {
+      page = 1,
+      limit = 20,
+      keyword,
+      sortBy = 'usageCount',
+      sortOrder = 'DESC',
+    } = query;
+
+    const qb = this.tagRepository.createQueryBuilder('tag');
+
+    if (keyword && keyword.trim()) {
+      qb.where('(tag.name LIKE :keyword OR tag.slug LIKE :keyword)', {
+        keyword: `%${keyword.trim()}%`,
+      });
+    }
+
+    const validSort = ['usageCount', 'name', 'createdAt'];
+    const orderField = validSort.includes(sortBy) ? sortBy : 'usageCount';
+    const orderDirection = sortOrder === 'ASC' ? 'ASC' : 'DESC';
+
+    const take = Math.min(Math.max(limit, 1), 100);
+    const currentPage = Math.max(page, 1);
+
+    const [data, total] = await qb
+      .orderBy(`tag.${orderField}`, orderDirection)
+      .skip((currentPage - 1) * take)
+      .take(take)
+      .getManyAndCount();
+
+    return {
+      data,
+      total,
+      page: currentPage,
+      limit: take,
+    };
   }
 
   /**
@@ -78,6 +131,28 @@ export class TagService {
    */
   async getTagById(id: number): Promise<Tag | null> {
     return this.tagRepository.findOne({ where: { id } });
+  }
+
+  async updateTag(id: number, name: string): Promise<Tag> {
+    const tag = await this.tagRepository.findOne({ where: { id } });
+    if (!tag) {
+      throw new NotFoundException('标签不存在');
+    }
+
+    const normalizedName = name.trim();
+    tag.name = normalizedName;
+    tag.slug = this.generateSlug(normalizedName);
+
+    return this.tagRepository.save(tag);
+  }
+
+  async deleteTag(id: number): Promise<void> {
+    const tag = await this.tagRepository.findOne({ where: { id } });
+    if (!tag) {
+      throw new NotFoundException('标签不存在');
+    }
+
+    await this.tagRepository.delete(id);
   }
 
   /**

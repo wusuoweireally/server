@@ -40,34 +40,43 @@ export class ReportService {
    * 获取举报列表（管理员功能）
    */
   async getReports(getReportsDto: GetReportsDto): Promise<{ data: Report[]; total: number; page: number; limit: number }> {
-    const { page = 1, limit = 20, targetType, reason, status, userId } = getReportsDto;
+    const { page = 1, limit = 20, targetType, reason, status, userId, keyword } = getReportsDto;
     const skip = (page - 1) * limit;
 
-    const where: any = {};
+    const queryBuilder = this.reportRepository
+      .createQueryBuilder('report')
+      .leftJoinAndSelect('report.user', 'user')
+      .leftJoinAndSelect('report.post', 'post')
+      .leftJoinAndSelect('report.comment', 'comment')
+      .leftJoinAndSelect('report.reviewer', 'reviewer')
+      .orderBy('report.createdAt', 'DESC')
+      .skip(skip)
+      .take(limit);
 
     if (targetType) {
-      where.targetType = targetType;
+      queryBuilder.andWhere('report.targetType = :targetType', { targetType });
     }
 
     if (reason) {
-      where.reason = reason;
+      queryBuilder.andWhere('report.reason = :reason', { reason });
     }
 
     if (status) {
-      where.status = status;
+      queryBuilder.andWhere('report.status = :status', { status });
     }
 
     if (userId) {
-      where.userId = userId;
+      queryBuilder.andWhere('report.userId = :userId', { userId });
     }
 
-    const [data, total] = await this.reportRepository.findAndCount({
-      where,
-      relations: ['user', 'post', 'comment', 'reviewer'],
-      order: { createdAt: 'DESC' },
-      skip,
-      take: limit,
-    });
+    if (keyword && keyword.trim()) {
+      queryBuilder.andWhere(
+        '(report.description LIKE :keyword OR user.username LIKE :keyword)',
+        { keyword: `%${keyword.trim()}%` },
+      );
+    }
+
+    const [data, total] = await queryBuilder.getManyAndCount();
 
     return {
       data,

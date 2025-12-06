@@ -13,6 +13,7 @@ import { ViewHistory } from '../entities/view-history.entity';
 import { UserLike } from '../entities/user-like.entity';
 import { UserFavorite } from '../entities/user-favorite.entity';
 import { TagModule } from './tag.module';
+import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 
 @Module({
   imports: [
@@ -28,7 +29,12 @@ import { TagModule } from './tag.module';
     TagModule,
   ],
   controllers: [WallpaperController],
-  providers: [WallpaperService, UploadService, ViewHistoryService],
+  providers: [
+    WallpaperService,
+    UploadService,
+    ViewHistoryService,
+    OptionalJwtAuthGuard,
+  ],
   exports: [WallpaperService, UploadService, ViewHistoryService],
 })
 export class WallpaperModule {}

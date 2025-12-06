@@ -28,6 +28,7 @@ import { WallpaperService } from '../services/wallpaper.service';
 import { ViewHistoryService } from '../services/view-history.service';
 import { CreateUserDto, UpdateUserDto, LoginDto } from '../dto/user.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 import { CurrentUser } from '../decorators/current-user.decorator';
 import { User } from '../entities/user.entity';
 
@@ -77,22 +78,26 @@ export class UserController {
     response.cookie('Authentication', result.access_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: 'lax',
       maxAge: 60 * 24 * 60 * 60 * 1000, // 60天（毫秒）
+      path: '/', // 确保所有接口均可携带
     });
 
     return {
       success: true,
       message: '登录成功',
-      data: result.user,
+      data: {
+        user: result.user,
+        token: result.access_token,
+      },
     };
   }
 
   // 用户退出登录
   @Post('logout')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(OptionalJwtAuthGuard)
   logout(@Res({ passthrough: true }) response: Response) {
-    response.clearCookie('Authentication');
+    response.clearCookie('Authentication', { path: '/' });
     return {
       success: true,
       message: '退出登录成功',
