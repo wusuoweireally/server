@@ -7,6 +7,7 @@ import {
   IsNumberString,
   IsOptional,
   IsString,
+  IsBoolean,
   Max,
   Min,
 } from 'class-validator';
@@ -91,16 +92,15 @@ export class AdminWallpaperQueryDto {
 
 export class AdminUpdateWallpaperDto extends UpdateWallpaperDto {
   @IsOptional()
-  @IsString()
-  title?: string;
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(1)
+  status?: number;
 
   @IsOptional()
-  @IsString()
-  description?: string;
-
-  @IsOptional()
-  @IsString()
-  category?: 'general' | 'anime' | 'people';
+  @IsBoolean()
+  isFeatured?: boolean;
 }
 
 export class AdminUpdateWallpaperTagsDto {

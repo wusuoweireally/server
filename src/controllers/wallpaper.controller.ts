@@ -173,6 +173,38 @@ export class WallpaperController {
   }
 
   /**
+   * 获取指定上传者的壁纸列表
+   */
+  @Get('uploader/:uploaderId')
+  async getWallpapersByUploader(
+    @Param('uploaderId') uploaderId: string,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '20',
+  ) {
+    const id = Number(uploaderId);
+    if (isNaN(id)) {
+      throw new BadRequestException('无效的上传者ID');
+    }
+
+    const result = await this.wallpaperService.findByUploaderId(
+      id,
+      Number(page),
+      Number(limit),
+    );
+
+    return {
+      success: true,
+      data: result.data,
+      pagination: {
+        page: Number(page),
+        limit: Number(limit),
+        total: result.total,
+        pages: Math.ceil(result.total / Number(limit)),
+      },
+    };
+  }
+
+  /**
    * 获取壁纸详情
    */
   @Get(':id')

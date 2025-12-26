@@ -47,6 +47,9 @@ export class Wallpaper {
   @Column({ name: 'file_size', type: 'bigint', comment: '文件大小(字节)' })
   fileSize: number;
 
+  @Column({ length: 20, nullable: true, comment: '文件格式' })
+  format: string;
+
   @Column({ type: 'int', comment: '图片宽度' })
   width: number;
 

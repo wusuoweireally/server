@@ -1,14 +1,23 @@
 import {
   IsString,
   IsOptional,
-  IsNumber,
-  IsBoolean,
   IsArray,
   IsEnum,
   IsNumberString,
+  Length,
 } from 'class-validator';
 
 export class CreateWallpaperDto {
+  @IsOptional()
+  @IsString()
+  @Length(1, 100, { message: '标题长度必须在1-100个字符之间' })
+  title?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(0, 500, { message: '描述长度不能超过500个字符' })
+  description?: string;
+
   @IsEnum(['general', 'anime', 'people'])
   @IsOptional()
   category?: 'general' | 'anime' | 'people';
@@ -19,13 +28,19 @@ export class CreateWallpaperDto {
 }
 
 export class UpdateWallpaperDto {
-  @IsBoolean()
   @IsOptional()
-  isFeatured?: boolean;
+  @IsString()
+  @Length(1, 100, { message: '标题长度必须在1-100个字符之间' })
+  title?: string;
 
-  @IsNumber()
   @IsOptional()
-  status?: number;
+  @IsString()
+  @Length(0, 500, { message: '描述长度不能超过500个字符' })
+  description?: string;
+
+  @IsEnum(['general', 'anime', 'people'])
+  @IsOptional()
+  category?: 'general' | 'anime' | 'people';
 }
 
 export class WallpaperQueryDto {

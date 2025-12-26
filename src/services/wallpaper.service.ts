@@ -385,7 +385,7 @@ export class WallpaperService {
 
     const [data, total] = await this.wallpaperRepository.findAndCount({
       where: { uploaderId, status: 1 },
-      relations: ['uploader'],
+      relations: ['uploader', 'tags'],
       order: { createdAt: 'DESC' },
       skip,
       take: limit,
